@@ -1,0 +1,14 @@
+=== DEBUG LOG ===
+Timestamp: 2025-11-03T18:02:32.322284
+Event: messenger_not_found
+Current URL: https://www.facebook.com/
+Page Title: (5) Facebook
+
+=== Additional Info ===
+Nie znaleziono linku do Messengera
+
+=== Browser Logs ===
+{'level': 'SEVERE', 'message': 'chrome-extension://invalid/ - Failed to load resource: net::ERR_FAILED', 'source': 'network', 'timestamp': 1762189340421}
+{'level': 'SEVERE', 'message': 'chrome-extension://invalid/ - Failed to load resource: net::ERR_FAILED', 'source': 'network', 'timestamp': 1762189340568}
+{'level': 'SEVERE', 'message': 'chrome-extension://invalid/ - Failed to load resource: net::ERR_FAILED', 'source': 'network', 'timestamp': 1762189340622}
+{'level': 'SEVERE', 'message': 'chrome-extension://invalid/ - Failed to load resource: net::ERR_FAILED', 'source': 'network', 'timestamp': 1762189340658}

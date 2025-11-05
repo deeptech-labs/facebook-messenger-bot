@@ -1,0 +1,16 @@
+=== DEBUG LOG ===
+Timestamp: 2025-11-03T17:43:20.116745
+Event: before_login
+Current URL: https://www.facebook.com/
+Page Title: Facebook - log in or sign up
+
+=== Additional Info ===
+Próba logowania dla: sfiauhg.ader@interia.pl
+
+=== Browser Logs ===
+{'level': 'WARNING', 'message': "security - Error with Permissions-Policy header: Unrecognized feature: 'bluetooth'.", 'source': 'security', 'timestamp': 1762188197973}
+{'level': 'DEBUG', 'message': 'https://www.facebook.com/ - [DOM] Input elements should have autocomplete attributes (suggested: "current-password"): (More info: https://goo.gl/9p2vKq) %o', 'source': 'recommendation', 'timestamp': 1762188199145}
+{'level': 'INFO', 'message': 'console-api - "\\n%cStop!" "font-family:helvetica; font-size:20px; font-size:50px; font-weight:bold; color:red; -webkit-text-stroke:1px black;"', 'source': 'console-api', 'timestamp': 1762188199653}
+{'level': 'INFO', 'message': 'console-api - "\\n%cThis is a browser feature intended for developers. If someone told you to copy-paste something here to enable a Facebook feature or \\"hack\\" someone\'s account, it is a scam and will give them access to your Facebook account." "font-family:helvetica; font-size:20px; "', 'source': 'console-api', 'timestamp': 1762188199653}
+{'level': 'INFO', 'message': 'console-api - "\\n%cSee https://www.facebook.com/selfxss for more information." "font-family:helvetica; font-size:20px; "', 'source': 'console-api', 'timestamp': 1762188199653}
+{'level': 'INFO', 'message': 'console-api - "\\n%c" ""', 'source': 'console-api', 'timestamp': 1762188199653}

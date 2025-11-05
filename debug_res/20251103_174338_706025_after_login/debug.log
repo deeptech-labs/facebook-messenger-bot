@@ -1,0 +1,17 @@
+=== DEBUG LOG ===
+Timestamp: 2025-11-03T17:43:40.009418
+Event: after_login
+Current URL: https://www.facebook.com/two_step_verification/authentication/?encrypted_context=AREUK_8XrPfA8Z3ng9QiutqAm-Z2ZqnKX8vpFxyAQzp13TgQdywVUrmZ-cWbK1vmEBB-djP_2Cd0Ayc_lTMbyPbC-gUkL6y4S2uvG7Z_2wLPeC1lAt__yICWvaXDlgsUD1QplExwTGGYJZfeXhZCNvzmEqDrwUNcCY52evmd23thA_SNP4XteIzQliHRrsgLD8ABPB5chrEQ54tr1LAR4204bCNdbaHdNXr9T5_02Q8yKwjTNT1aqDEyRcXCWUoZ4IeKPerSMHJPiW0JbBhKeII6br8KiEPlQpYTzD82dBJUlNEZtjQA6Htm2B3kFAtMThhOw4-dLrpP_oQliDzSzmxQc6hlwzDei_TVSnpCw8_Gl89_aAT7rLqaoJr4iG4Hd_ltn1XohPQJTYyORpKomQvS4jJq55S9AQZBBveM1we0pACCXr9GjDj8xl9d9NF020Kxd710vxYt9PyUjocsCwB9-pKb36_wIUeOQAyPVVpHOkfa4vtvYwkRWJ25GSyuI8uiOvTk8j-Dw4ET2ie-pymlC_g53Zhvv8otg_YNRWKlPuAuA_QsRqpR55Ci1FbhHqZXBR2MesparGvIIQvsQKety6XJiholImWaJg3JTxOVRIMzT8K4K6iZwH8werTJdi91hfuuPsDwXDsmrR9vVu_D4MO3VRuXOyOsHqQlG3HYQO5v_p47LHkTheEz7wJzzTlIWir4bM3GvzuNi6wpym3vkKSds5Em_JySY34pFEu11zNts0J0hFjFhAeuUA8m5G2Vla5stOgrlbCX_JcFhP7fhbPv1_jVYpC18Kl86O0k7IOXmmnuSJs9PiTxANGXgIln4F50pbOUk_82_O33V3U4KY56_4ys9jyUzvSdF8vg4kUOdp2fJNquSmsyQ2cvWTMSYHSeX4rXVStMWIHQZjRpCOmr2CDpVCkpSQ_mHR7s8PHOnjoRa47OqDLeygm3uiUEUsvoUsWBwGby0dgcn8IEu44bkSV0cdS7-wnnpHXveAu2Cf8bf4DbYum0rq8rU6aM4UBrVn4cEHunlpv9rhUgVZF1YbSbk7R7nodEN2asDcbUjuaXxVYnMbu2Nr_SsCZp6sBS2RSKiCAfBfCNP2ueIq-lX_WtGXX236GVvbmOeSxYjpqRjkzjGz_SUKV0ccSKVIEpMf15S4W7f2G-Vqivt0dsfjGa3zQEJoX9DDya3StY3DE0e_hlpVdIxcbR0o1KOg&flow=pre_authentication&next
+Page Title: Facebook
+
+=== Additional Info ===
+Logowanie zakończone dla: sfiauhg.ader@interia.pl
+
+=== Browser Logs ===
+{'level': 'WARNING', 'message': "security - Error with Permissions-Policy header: Unrecognized feature: 'bluetooth'.", 'source': 'security', 'timestamp': 1762188218707}
+{'level': 'WARNING', 'message': "security - Error with Permissions-Policy header: Unrecognized feature: 'bluetooth'.", 'source': 'security', 'timestamp': 1762188218708}
+{'level': 'INFO', 'message': 'https://static.xx.fbcdn.net/rsrc.php/v4/yd/r/ELalQ-mHErc.js 251:977 "\\n%cStop!" "font-family:helvetica; font-size:20px; font-size:50px; font-weight:bold; color:red; -webkit-text-stroke:1px black;"', 'source': 'console-api', 'timestamp': 1762188218709}
+{'level': 'INFO', 'message': 'https://static.xx.fbcdn.net/rsrc.php/v4/yd/r/ELalQ-mHErc.js 251:977 "\\n%cThis is a browser feature intended for developers. If someone told you to copy-paste something here to enable a Facebook feature or \\"hack\\" someone\'s account, it is a scam and will give them access to your Facebook account." "font-family:helvetica; font-size:20px; "', 'source': 'console-api', 'timestamp': 1762188218709}
+{'level': 'INFO', 'message': 'https://static.xx.fbcdn.net/rsrc.php/v4/yd/r/ELalQ-mHErc.js 251:977 "\\n%cSee https://www.facebook.com/selfxss for more information." "font-family:helvetica; font-size:20px; "', 'source': 'console-api', 'timestamp': 1762188218709}
+{'level': 'INFO', 'message': 'https://static.xx.fbcdn.net/rsrc.php/v4/yd/r/ELalQ-mHErc.js 251:977 "\\n%c" ""', 'source': 'console-api', 'timestamp': 1762188218709}
+{'level': 'SEVERE', 'message': 'https://static.xx.fbcdn.net/rsrc.php/v4/yd/r/ELalQ-mHErc.js 76:562 "ErrorUtils caught an error:\\n\\nterminate stream because StartStreamFailure with msg : UNAUTHENTICATED [Caught in: Subscription error in preprocessResponse]\\n\\nSubsequent non-fatal errors won\'t be logged; see https://fburl.com/debugjs." Object', 'source': 'console-api', 'timestamp': 1762188218709}

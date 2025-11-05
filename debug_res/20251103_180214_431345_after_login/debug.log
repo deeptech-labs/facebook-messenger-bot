@@ -1,0 +1,15 @@
+=== DEBUG LOG ===
+Timestamp: 2025-11-03T18:02:19.568707
+Event: after_login
+Current URL: https://www.facebook.com/
+Page Title: Facebook
+
+=== Additional Info ===
+Logowanie zakończone dla: sfiauhg.ader@interia.pl
+
+=== Browser Logs ===
+{'level': 'WARNING', 'message': "security - Error with Permissions-Policy header: Unrecognized feature: 'bluetooth'.", 'source': 'security', 'timestamp': 1762189334439}
+{'level': 'INFO', 'message': 'https://static.xx.fbcdn.net/rsrc.php/v4/y2/r/ZNpIjvlTlTG.js 251:964 "\\n%cStop!" "font-family:helvetica; font-size:20px; font-size:50px; font-weight:bold; color:red; -webkit-text-stroke:1px black;"', 'source': 'console-api', 'timestamp': 1762189336930}
+{'level': 'INFO', 'message': 'https://static.xx.fbcdn.net/rsrc.php/v4/y2/r/ZNpIjvlTlTG.js 251:964 "\\n%cTa funkcja przeglądarki jest przeznaczona dla twórców aplikacji. Jeżeli ktoś polecił Ci skopiować i wkleić tu coś, aby włączyć funkcję Facebooka lub włamać się na czyjeś konto, jest to oszustwo mające na celu uzyskanie dostępu do Twojego konta na Facebooku." "font-family:helvetica; font-size:20px; "', 'source': 'console-api', 'timestamp': 1762189336930}
+{'level': 'INFO', 'message': 'https://static.xx.fbcdn.net/rsrc.php/v4/y2/r/ZNpIjvlTlTG.js 251:964 "\\n%cZobacz https://www.facebook.com/selfxss, aby dowiedzieć się więcej." "font-family:helvetica; font-size:20px; "', 'source': 'console-api', 'timestamp': 1762189336931}
+{'level': 'INFO', 'message': 'https://static.xx.fbcdn.net/rsrc.php/v4/y2/r/ZNpIjvlTlTG.js 251:964 "\\n%c" ""', 'source': 'console-api', 'timestamp': 1762189336931}

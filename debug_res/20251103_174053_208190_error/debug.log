@@ -1,0 +1,83 @@
+=== DEBUG LOG ===
+Timestamp: 2025-11-03T17:40:53.453140
+Event: error
+Current URL: https://www.facebook.com/
+Page Title: Facebook - log in or sign up
+
+=== Additional Info ===
+ERROR: ElementClickInterceptedException
+Message: element click intercepted: Element <button value="1" class="_42ft _4jy0 _6lth _4jy6 _4jy1 selected _51sy" name="login" data-testid="royal-login-button" type="submit" id="u_0_5_TW">...</button> is not clickable at point (433, 382). Other element would receive the click: <span class="x193iq5w xeuugli x13faqbe x1vvkbs x10flsy6 x1lliihq x1s928wv xhkezso x1gmr53x x1cpjm7i x1fgarty x1943h6x x4zkp8e x41vudc x6prxxf xvq8zen xo1l8bm xzsf02u" dir="auto">...</span>
+  (Session info: chrome=141.0.7390.122)
+Stacktrace:
+#0 0x64ba1e3c5fea <unknown>
+#1 0x64ba1de43d06 <unknown>
+#2 0x64ba1de9cdac <unknown>
+#3 0x64ba1de9ac2d <unknown>
+#4 0x64ba1de98292 <unknown>
+#5 0x64ba1de979a0 <unknown>
+#6 0x64ba1de8a16b <unknown>
+#7 0x64ba1debbe12 <unknown>
+#8 0x64ba1de89ae7 <unknown>
+#9 0x64ba1debbfde <unknown>
+#10 0x64ba1dee1b3b <unknown>
+#11 0x64ba1debbbe3 <unknown>
+#12 0x64ba1de882d2 <unknown>
+#13 0x64ba1de88f91 <unknown>
+#14 0x64ba1e3899e8 <unknown>
+#15 0x64ba1e38d84f <unknown>
+#16 0x64ba1e370ec9 <unknown>
+#17 0x64ba1e38e3f5 <unknown>
+#18 0x64ba1e35674f <unknown>
+#19 0x64ba1e3b2cc8 <unknown>
+#20 0x64ba1e3b2ea3 <unknown>
+#21 0x64ba1e3c4f83 <unknown>
+#22 0x715fe649caa4 <unknown>
+#23 0x715fe6529c6c <unknown>
+
+
+Traceback:
+Traceback (most recent call last):
+  File "/home/zbnt/Development/bots/facebook-bot/facebook-messenger-bot/src/facebook_bot.py", line 55, in login
+    utils.wait_for_element_and_click(self.driver, (By.NAME, "login"))
+  File "/home/zbnt/Development/bots/facebook-bot/facebook-messenger-bot/src/utils.py", line 25, in wait_for_element_and_click
+    element.click()
+  File "/home/zbnt/miniconda3/lib/python3.12/site-packages/selenium/webdriver/remote/webelement.py", line 94, in click
+    self._execute(Command.CLICK_ELEMENT)
+  File "/home/zbnt/miniconda3/lib/python3.12/site-packages/selenium/webdriver/remote/webelement.py", line 395, in _execute
+    return self._parent.execute(command, params)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/zbnt/miniconda3/lib/python3.12/site-packages/selenium/webdriver/remote/webdriver.py", line 354, in execute
+    self.error_handler.check_response(response)
+  File "/home/zbnt/miniconda3/lib/python3.12/site-packages/selenium/webdriver/remote/errorhandler.py", line 229, in check_response
+    raise exception_class(message, screen, stacktrace)
+selenium.common.exceptions.ElementClickInterceptedException: Message: element click intercepted: Element <button value="1" class="_42ft _4jy0 _6lth _4jy6 _4jy1 selected _51sy" name="login" data-testid="royal-login-button" type="submit" id="u_0_5_TW">...</button> is not clickable at point (433, 382). Other element would receive the click: <span class="x193iq5w xeuugli x13faqbe x1vvkbs x10flsy6 x1lliihq x1s928wv xhkezso x1gmr53x x1cpjm7i x1fgarty x1943h6x x4zkp8e x41vudc x6prxxf xvq8zen xo1l8bm xzsf02u" dir="auto">...</span>
+  (Session info: chrome=141.0.7390.122)
+Stacktrace:
+#0 0x64ba1e3c5fea <unknown>
+#1 0x64ba1de43d06 <unknown>
+#2 0x64ba1de9cdac <unknown>
+#3 0x64ba1de9ac2d <unknown>
+#4 0x64ba1de98292 <unknown>
+#5 0x64ba1de979a0 <unknown>
+#6 0x64ba1de8a16b <unknown>
+#7 0x64ba1debbe12 <unknown>
+#8 0x64ba1de89ae7 <unknown>
+#9 0x64ba1debbfde <unknown>
+#10 0x64ba1dee1b3b <unknown>
+#11 0x64ba1debbbe3 <unknown>
+#12 0x64ba1de882d2 <unknown>
+#13 0x64ba1de88f91 <unknown>
+#14 0x64ba1e3899e8 <unknown>
+#15 0x64ba1e38d84f <unknown>
+#16 0x64ba1e370ec9 <unknown>
+#17 0x64ba1e38e3f5 <unknown>
+#18 0x64ba1e35674f <unknown>
+#19 0x64ba1e3b2cc8 <unknown>
+#20 0x64ba1e3b2ea3 <unknown>
+#21 0x64ba1e3c4f83 <unknown>
+#22 0x715fe649caa4 <unknown>
+#23 0x715fe6529c6c <unknown>
+
+
+
+=== Browser Logs ===
