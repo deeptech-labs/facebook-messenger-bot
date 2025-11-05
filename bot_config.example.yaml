@@ -1,0 +1,229 @@
+# Przykładowy plik konfiguracyjny dla Facebook Messenger Bot
+# Skopiuj ten plik jako bot_config.yaml i dostosuj do swoich potrzeb
+
+# UWAGA: Bot domyślnie odczytuje konfigurację z bot_config.md (bloki YAML w markdown)
+# Jeśli wolisz używać czystego YAML, zmień CONFIG_FILE w config/settings.py
+
+# Tryb działania bota
+mode: "monitor"  # "monitor", "interactive", "extract", "auto"
+
+# Harmonogram (opcjonalnie)
+schedule:
+  enabled: false
+  active_hours:
+    start: "08:00"
+    end: "22:00"
+  active_days: [1, 2, 3, 4, 5]  # 1=poniedziałek, 7=niedziela
+
+# Parametry monitorowania
+polling_interval: 10  # Interwał sprawdzania (sekundy)
+wait_timeout: 10      # Timeout dla oczekiwania na elementy
+headless_mode: false  # true = przeglądarka ukryta
+
+# Zakres monitorowania
+scope: "specific"  # "all", "specific", "groups", "private"
+
+# Konkretne konwersacje do monitorowania
+specific_conversations:
+  - name: "Rafał Szuwalski"
+    priority: "high"
+    enabled: true
+    actions:
+      - "monitor"
+      - "save_messages"
+      - "notify"
+    custom_function: null
+
+  - name: "Jan Kowalski"
+    priority: "medium"
+    enabled: false
+    actions:
+      - "monitor"
+    custom_function: null
+
+# Filtry konwersacji
+filters:
+  exclude_archived: true
+  exclude_muted: false
+  only_unread: false
+  min_message_count: 0
+
+# Jakie dane zbierać
+data_to_collect:
+  messages:
+    enabled: true
+    include_reactions: true
+    include_timestamps: true
+    include_sender_info: true
+
+  media:
+    enabled: true
+    types:
+      - "images"
+      - "videos"
+      - "audio"
+      - "documents"
+    download_files: false
+
+  metadata:
+    enabled: true
+    include_read_status: true
+    include_delivery_status: true
+    include_conversation_info: true
+
+  user_info:
+    enabled: false
+    fields:
+      - "name"
+      - "profile_picture"
+      - "status"
+
+# Zakres czasowy
+time_range:
+  mode: "realtime"  # "realtime", "historical", "custom"
+  start_date: null
+  end_date: null
+  last_n_days: 30
+  last_n_messages: 100
+
+# Monitoring
+monitoring:
+  enabled: true
+  detect_new_messages: true
+  detect_typing: false
+  detect_online_status: false
+  track_message_count: true
+
+# Powiadomienia
+notifications:
+  enabled: true
+  methods:
+    - "console"
+    - "log_file"
+  triggers:
+    on_new_message: true
+    on_specific_keywords: false
+    on_mention: false
+  keywords:
+    - "urgent"
+    - "pilne"
+    - "help"
+
+# Automatyczne odpowiedzi (OSTROŻNIE!)
+auto_reply:
+  enabled: false
+  delay: 5
+  rules:
+    - trigger: "keyword"
+      pattern: "hello|hi|cześć"
+      response: "Cześć! Jestem automatycznym botem."
+      enabled: false
+
+    - trigger: "all"
+      pattern: null
+      response: "Obecnie jestem niedostępny. Odezwę się później."
+      enabled: false
+
+# Akcje na nowe wiadomości
+on_new_message:
+  actions:
+    - type: "log"
+      enabled: true
+
+    - type: "mark_as_read"
+      enabled: false
+
+    - type: "save_to_database"
+      enabled: false
+      database_path: "./data/messages.db"
+
+    - type: "save_to_file"
+      enabled: true
+      file_path: "./data/messages.txt"
+      format: "json"
+
+    - type: "execute_script"
+      enabled: false
+      script_path: "./scripts/on_message.py"
+
+# Akcje okresowe
+periodic_actions:
+  - name: "cleanup_logs"
+    enabled: false
+    interval: 86400  # 24h
+    action: "cleanup"
+    parameters:
+      keep_days: 7
+
+  - name: "export_data"
+    enabled: false
+    interval: 3600  # 1h
+    action: "export"
+    parameters:
+      format: "json"
+      destination: "./exports/"
+
+# Export danych
+export:
+  enabled: true
+  auto_export: false
+  export_interval: 3600
+  formats:
+    - "json"
+    - "csv"
+    - "txt"
+    - "html"
+  destination: "./exports/"
+  file_naming:
+    pattern: "{date}_{conversation}_{format}"
+  compression:
+    enabled: false
+    format: "zip"
+
+# Zawartość eksportu
+export_content:
+  include_metadata: true
+  include_messages: true
+  include_media_links: true
+  include_timestamps: true
+  include_participants: true
+  include_statistics: true
+  anonymize:
+    enabled: false
+    anonymize_names: false
+    anonymize_phone_numbers: false
+
+# Debug i logi
+debugging:
+  enabled: true
+  save_screenshots: true
+  save_page_source: true
+  screenshot_on_error: true
+  verbose_logging: false
+  log_level: "INFO"  # "DEBUG", "INFO", "WARNING", "ERROR"
+  log_file: "./logs/bot.log"
+  debug_dir: "./debug_res/"
+
+# Bezpieczeństwo
+security:
+  respect_rate_limits: true
+  random_delays: true
+  min_delay: 1
+  max_delay: 3
+  max_actions_per_hour: 100
+  max_messages_per_conversation: 50
+
+# Zarządzanie sesją
+session:
+  save_cookies: false
+  cookies_file: "./config/cookies.pkl"
+  session_timeout: 3600
+  auto_reconnect: true
+  max_reconnect_attempts: 3
+
+# Wydajność
+performance:
+  max_memory_usage: 512
+  cache_enabled: true
+  cache_size: 100
+  parallel_processing: false
