@@ -127,42 +127,83 @@ class FacebookBot:
     def navigate_to_messenger(self):
         """Przechodzi do Messenger."""
         try:
-            # Znajdź link do Messengera w pasku nawigacyjnym
-            messenger_link = utils.wait_for_element_presence(
-                self.driver,
-                (By.CSS_SELECTOR, "a[aria-label='Messenger']")
-            )
+            # Zapisz przed przejściem (jeśli debugging włączony)
+            if self.config.should_save_screenshots():
+                self.debug_logger.save_debug_snapshot(
+                    self.driver,
+                    "before_messenger",
+                    "Przed przejściem do Messengera"
+                )
+
+            # Najpierw spróbuj znaleźć i kliknąć link do Messengera
+            messenger_selectors = [
+                (By.CSS_SELECTOR, "a[aria-label='Messenger']"),
+                (By.CSS_SELECTOR, "a[href*='facebook.com/messages']"),
+                (By.CSS_SELECTOR, "a[href='/messages']"),
+                (By.CSS_SELECTOR, "a[href='/messages/t/']"),
+                (By.XPATH, "//a[contains(@href, 'messages')]"),
+                (By.XPATH, "//a[contains(@aria-label, 'Messenger')]"),
+                (By.XPATH, "//a[contains(@aria-label, 'Chats')]"),
+            ]
+
+            messenger_link = None
+            for selector in messenger_selectors:
+                try:
+                    messenger_link = utils.wait_for_element_presence(
+                        self.driver,
+                        selector,
+                        timeout=2  # Krótszy timeout dla każdej próby
+                    )
+                    if messenger_link:
+                        logger.info(f"✓ Znaleziono link do Messengera używając: {selector}")
+                        break
+                except Exception:
+                    continue
 
             if messenger_link:
-                # Zapisz przed przejściem (jeśli debugging włączony)
-                if self.config.should_save_screenshots():
-                    self.debug_logger.save_debug_snapshot(
-                        self.driver,
-                        "before_messenger",
-                        "Przed przejściem do Messengera"
-                    )
+                try:
+                    messenger_link.click()
+                    time.sleep(3)  # Czekaj na załadowanie
 
-                messenger_link.click()
-                time.sleep(3)  # Czekaj na załadowanie
+                    # Zapisz po przejściu (jeśli debugging włączony)
+                    if self.config.should_save_screenshots():
+                        self.debug_logger.save_debug_snapshot(
+                            self.driver,
+                            "after_messenger",
+                            "Po przejściu do Messengera (kliknięcie linku)"
+                        )
 
+                    logger.info("✅ Przejście do Messengera powiodło się (kliknięcie linku)")
+                    return True
+                except Exception as e:
+                    logger.warning(f"⚠ Nie udało się kliknąć linku: {e}, próbuję bezpośredniej nawigacji...")
+
+            # Fallback: Bezpośrednia nawigacja do Messenger URL
+            logger.info("🔄 Używam bezpośredniej nawigacji do Messenger...")
+            self.driver.get("https://www.facebook.com/messages")
+            time.sleep(5)  # Czekaj na załadowanie
+
+            # Sprawdź czy udało się przejść do Messengera
+            current_url = self.driver.current_url
+            if "messages" in current_url or "messenger.com" in current_url:
                 # Zapisz po przejściu (jeśli debugging włączony)
                 if self.config.should_save_screenshots():
                     self.debug_logger.save_debug_snapshot(
                         self.driver,
                         "after_messenger",
-                        "Po przejściu do Messengera"
+                        f"Po przejściu do Messengera (bezpośrednia nawigacja)\nURL: {current_url}"
                     )
 
-                logger.info("✅ Przejście do Messengera powiodło się")
+                logger.info(f"✅ Przejście do Messengera powiodło się (bezpośrednia nawigacja): {current_url}")
                 return True
             else:
-                logger.error("Nie udało się znaleźć linku do Messengera.")
-                # Zapisz gdy nie znaleziono (jeśli debugging włączony)
+                logger.error(f"❌ Nie udało się przejść do Messengera. Aktualny URL: {current_url}")
+                # Zapisz gdy nie udało się przejść (jeśli debugging włączony)
                 if self.config.should_save_screenshots():
                     self.debug_logger.save_debug_snapshot(
                         self.driver,
-                        "messenger_not_found",
-                        "Nie znaleziono linku do Messengera"
+                        "messenger_navigation_failed",
+                        f"Nie udało się przejść do Messengera\nAktualny URL: {current_url}"
                     )
                 return False
 
