@@ -1,0 +1,214 @@
+# ============================================
+# FACEBOOK BOT - CODZIENNY MONITORING GRUP
+# ============================================
+
+# 1. TRYB: Interaktywny (może reagować)
+mode: "interactive"
+
+# 2. ZAKRES: Tylko grupy
+scope: "groups"
+
+# 3. HARMONOGRAM - Codziennie
+schedule:
+  enabled: true
+  active_hours:
+    start: "08:00"                   # Dostosuj do swoich potrzeb
+    end: "23:00"
+  active_days:
+    - 1  # Poniedziałek
+    - 2  # Wtorek
+    - 3  # Środa
+    - 4  # Czwartek
+    - 5  # Piątek
+    - 6  # Sobota
+    - 7  # Niedziela
+
+# 4. WYBRANE GRUPY (te same co wcześniej)
+specific_conversations:
+  - name: "Nazwa Grupy 1"
+    priority: "high"
+    enabled: true
+    actions:
+      - "monitor"
+      - "save_messages"
+      - "notify"
+      - "auto_reply"                 # Reaguj na @mention
+    custom_function: "respond_to_mention"
+
+  - name: "Nazwa Grupy 2"
+    priority: "high"
+    enabled: true
+    actions:
+      - "monitor"
+      - "save_messages"
+      - "notify"
+      - "auto_reply"
+    custom_function: "respond_to_mention"
+
+# 5. FILTRY
+filters:
+  exclude_archived: true
+  exclude_muted: false
+  only_unread: true                  # Tylko nowe wiadomości!
+  min_message_count: 0
+
+# 6. POBIERANE DANE (tylko aktualizacje)
+data_to_collect:
+  messages:
+    enabled: true
+    include_reactions: true
+    include_timestamps: true
+    include_sender_info: true
+
+  media:
+    enabled: true
+    types:
+      - "images"
+      - "videos"
+      - "audio"
+      - "documents"
+    download_files: false            # Tylko linki (oszczędność miejsca)
+
+  metadata:
+    enabled: true
+    include_read_status: true
+    include_delivery_status: true
+    include_conversation_info: true
+
+  user_info:
+    enabled: false                   # Już mamy z pierwszej ekstrakcji
+
+# 7. ZAKRES CZASOWY - Tylko nowe
+time_range:
+  mode: "realtime"                   # Tylko aktualne wiadomości
+  last_n_days: 1                     # Ostatnie 24h (na wszelki wypadek)
+
+# 8. MONITORING AKTYWNY
+monitoring:
+  enabled: true
+  detect_new_messages: true
+  detect_typing: false
+  detect_online_status: false
+  track_message_count: true
+
+# 9. POWIADOMIENIA - Tylko gdy @mention
+notifications:
+  enabled: true
+  methods:
+    - "console"
+    - "log_file"
+  triggers:
+    on_new_message: false
+    on_specific_keywords: false
+    on_mention: true                 # KLUCZOWE! ✨
+
+# 10. AUTOMATYCZNE ODPOWIEDZI - Tylko na @
+auto_reply:
+  enabled: true
+  delay: 3                           # 3 sekundy opóźnienia (naturalne)
+
+  rules:
+    # Reaguj TYLKO gdy ktoś oznaczy bota
+    - trigger: "regex"
+      pattern: "@(TwojBot|Bot|BotName)"  # Dostosuj do nazwy bota
+      response: "Cześć! Jestem tutaj. Jak mogę pomóc?"
+      enabled: true
+
+    # Możesz dodać konkretne komendy:
+    - trigger: "regex"
+      pattern: "@(TwojBot|Bot).*(help|pomoc)"
+      response: "Dostępne komendy:\n- @Bot status\n- @Bot statystyki\n- @Bot info"
+      enabled: true
+
+    - trigger: "regex"
+      pattern: "@(TwojBot|Bot).*(status)"
+      response: "Bot działa poprawnie! ✅"
+      enabled: true
+
+    # Ogólna reakcja jeśli nie rozpoznał komendy
+    - trigger: "regex"
+      pattern: "@(TwojBot|Bot)"
+      response: "Otrzymałem Twoją wiadomość. Napisz '@Bot help' aby zobaczyć dostępne komendy."
+      enabled: true
+
+# 11. AKCJE NA NOWE WIADOMOŚCI
+on_new_message:
+  actions:
+    - type: "log"
+      enabled: true
+
+    - type: "save_to_file"
+      enabled: true
+      file_path: "./data/groups_daily.json"
+      format: "json"
+
+    - type: "save_to_database"
+      enabled: false                 # Możesz włączyć jeśli masz bazę
+      database_path: "./data/messages.db"
+
+# 12. AKCJE OKRESOWE - Codzienne podsumowanie
+periodic_actions:
+  - name: "daily_export"
+    enabled: true
+    interval: 86400                  # 24h = 86400 sekund
+    action: "export"
+    parameters:
+      format: "json"
+      destination: "./exports/daily/"
+
+  - name: "cleanup_old_logs"
+    enabled: true
+    interval: 86400
+    action: "cleanup"
+    parameters:
+      keep_days: 30                  # Zachowaj logi z 30 dni
+
+# 13. EXPORT
+export:
+  enabled: true
+  auto_export: true
+  export_interval: 86400             # Raz dziennie
+
+  formats:
+    - "json"
+
+  destination: "./exports/daily/"
+
+  file_naming:
+    pattern: "{date}_GROUP_{conversation}_UPDATE_{format}"
+
+  compression:
+    enabled: true
+    format: "zip"
+
+# 14. PARAMETRY
+polling_interval: 30                 # Sprawdzaj co 30 sekund
+wait_timeout: 10
+headless_mode: true                  # Ukryta przeglądarka (w tle)
+
+# 15. BEZPIECZEŃSTWO
+security:
+  respect_rate_limits: true
+  random_delays: true
+  min_delay: 3
+  max_delay: 7
+  max_actions_per_hour: 50           # Mniej akcji = bezpieczniej
+  max_messages_per_conversation: 20
+
+# 16. DEBUG
+debugging:
+  enabled: true
+  save_screenshots: false            # Wyłącz (oszczędność miejsca)
+  save_page_source: false
+  screenshot_on_error: true          # Tylko przy błędach
+  verbose_logging: false
+  log_level: "INFO"
+  log_file: "./logs/bot_daily.log"
+
+# 17. SESJA
+session:
+  save_cookies: true                 # Szybsze logowanie
+  cookies_file: "./config/cookies.pkl"
+  session_timeout: 3600
+  auto_reconnect: true
+  max_reconnect_attempts: 5

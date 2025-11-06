@@ -28,13 +28,13 @@ class MessengerMonitor:
         # Loguj konfigurację monitorowania
         logger.info(f"Monitor zainicjalizowany - tryb: {self.config.get_mode()}, zakres: {self.config.get_scope()}")
 
-    def get_all_conversations(self, max_scrolls=20, scroll_pause=1.5):
+    def get_all_conversations(self, max_scrolls=15, scroll_pause=1.0):
         """
         Pobiera listę wszystkich dostępnych konwersacji z Messengera.
 
         Args:
-            max_scrolls: Maksymalna liczba przewinięć (domyślnie 20)
-            scroll_pause: Czas pauzy między przewinięciami w sekundach (domyślnie 1.5s)
+            max_scrolls: Maksymalna liczba przewinięć (domyślnie 15)
+            scroll_pause: Czas pauzy między przewinięciami w sekundach (domyślnie 1.0s)
         """
         try:
             conversations = []
@@ -73,6 +73,7 @@ class MessengerMonitor:
             logger.info(f"🔄 Rozpoczynam scrollowanie aby załadować wszystkie czaty...")
             previous_count = 0
             no_change_count = 0
+            seen_urls = set()  # Zbiór już przetworzonych URL-i dla szybszego sprawdzania duplikatów
 
             for scroll_iteration in range(max_scrolls):
                 # Zbierz aktualnie widoczne czaty
@@ -81,9 +82,13 @@ class MessengerMonitor:
                         chat_elements = self.driver.find_elements(By.CSS_SELECTOR, selector)
 
                         if chat_elements:
-                            logger.debug(f"Znaleziono {len(chat_elements)} elementów dla selektora: {selector}")
+                            logger.info(f"   Znaleziono {len(chat_elements)} elementów DOM dla selektora: {selector}")
 
-                            for element in chat_elements:
+                            # Ogranicz liczbę przetwarzanych elementów aby przyspieszyć
+                            # Przetwarzaj tylko pierwsze 50 elementów lub wszystkie jeśli mniej
+                            elements_to_process = chat_elements[:50] if len(chat_elements) > 50 else chat_elements
+
+                            for element in elements_to_process:
                                 try:
                                     # Pobierz nazwę czatu
                                     chat_name = None
@@ -120,11 +125,19 @@ class MessengerMonitor:
 
                                     # Dodaj do listy jeśli mamy nazwę
                                     if chat_name and len(chat_name) > 0:
-                                        # Usuń zbędne białe znaki i sprawdź duplikaty
+                                        # Usuń zbędne białe znaki
                                         chat_name = ' '.join(chat_name.split())
 
-                                        # Sprawdź czy to nie duplikat
-                                        if not any(conv['name'] == chat_name for conv in conversations):
+                                        # Użyj URL jako klucza unikalności (szybsze niż sprawdzanie nazw)
+                                        if chat_url and chat_url not in seen_urls:
+                                            seen_urls.add(chat_url)
+                                            conversations.append({
+                                                'name': chat_name,
+                                                'url': chat_url,
+                                                'element': element
+                                            })
+                                        elif not chat_url and not any(conv['name'] == chat_name for conv in conversations):
+                                            # Fallback dla czatów bez URL - sprawdź po nazwie
                                             conversations.append({
                                                 'name': chat_name,
                                                 'url': chat_url,
@@ -144,7 +157,7 @@ class MessengerMonitor:
                         continue
 
                 current_count = len(conversations)
-                logger.info(f"   Scroll {scroll_iteration + 1}/{max_scrolls}: Znaleziono {current_count} czatów")
+                logger.info(f"   Scroll {scroll_iteration + 1}/{max_scrolls}: Łącznie {current_count} unikalnych czatów")
 
                 # Sprawdź czy liczba czatów się nie zmienia
                 if current_count == previous_count:
