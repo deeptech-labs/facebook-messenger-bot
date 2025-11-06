@@ -113,17 +113,20 @@ class MessengerMonitor:
             seen_urls = set()  # Zbiór już przetworzonych URL-i dla szybszego sprawdzania duplikatów
 
             for scroll_iteration in range(max_scrolls):
+                logger.info(f"   📍 Scroll iteracja {scroll_iteration + 1}/{max_scrolls}")
+
                 # Zbierz aktualnie widoczne czaty
                 for selector in chat_selectors:
                     try:
                         chat_elements = self.driver.find_elements(By.CSS_SELECTOR, selector)
 
                         if chat_elements:
-                            logger.info(f"   Znaleziono {len(chat_elements)} elementów DOM dla selektora: {selector}")
+                            logger.info(f"      Znaleziono {len(chat_elements)} elementów DOM dla selektora: {selector}")
 
                             # Ogranicz liczbę przetwarzanych elementów aby przyspieszyć
                             # Przetwarzaj tylko pierwsze 50 elementów lub wszystkie jeśli mniej
                             elements_to_process = chat_elements[:50] if len(chat_elements) > 50 else chat_elements
+                            logger.info(f"      Przetwarzam {len(elements_to_process)} elementów...")
 
                             for element in elements_to_process:
                                 try:
@@ -185,16 +188,18 @@ class MessengerMonitor:
                                     logger.debug(f"Błąd podczas przetwarzania elementu czatu: {e}")
                                     continue
 
+                            logger.info(f"      ✅ Przetworzono {len(elements_to_process)} elementów, zebrano {len(conversations)} unikalnych czatów")
+
                             # Jeśli znaleźliśmy czaty, przerwij pętlę selektorów
                             if conversations:
                                 break
 
                     except Exception as e:
-                        logger.debug(f"Błąd dla selektora '{selector}': {e}")
+                        logger.warning(f"      ⚠️ Błąd dla selektora '{selector}': {e}")
                         continue
 
                 current_count = len(conversations)
-                logger.info(f"   Scroll {scroll_iteration + 1}/{max_scrolls}: Łącznie {current_count} unikalnych czatów")
+                logger.info(f"   📊 Scroll {scroll_iteration + 1}/{max_scrolls}: Łącznie {current_count} unikalnych czatów")
 
                 # Sprawdź czy liczba czatów się nie zmienia
                 if current_count == previous_count:
@@ -211,19 +216,22 @@ class MessengerMonitor:
                 try:
                     if scroll_container:
                         # Scrolluj w kontenerze czatów
+                        logger.info(f"   🔽 Scrolluję kontener w dół...")
                         self.driver.execute_script(
                             "arguments[0].scrollTop = arguments[0].scrollHeight",
                             scroll_container
                         )
                     else:
                         # Fallback - scrolluj całą stronę
+                        logger.info(f"   🔽 Scrolluję stronę w dół (fallback)...")
                         self.driver.execute_script("window.scrollTo(0, document.body.scrollHeight);")
 
                     # Poczekaj na załadowanie nowych czatów
+                    logger.info(f"   ⏳ Czekam {scroll_pause}s na załadowanie nowych czatów...")
                     time.sleep(scroll_pause)
 
                 except Exception as e:
-                    logger.debug(f"Błąd podczas scrollowania: {e}")
+                    logger.warning(f"   ⚠️ Błąd podczas scrollowania: {e}")
 
             logger.info(f"✅ Zakończono scrollowanie. Łącznie znaleziono {len(conversations)} czatów")
             return conversations
