@@ -1,0 +1,159 @@
+# ============================================
+# FACEBOOK BOT - POCZĄTKOWA EKSTRAKCJA GRUP
+# ============================================
+
+# 1. TRYB: Ekstrakcja historyczna
+mode: "extract"
+
+# 2. ZAKRES: Tylko grupy
+scope: "groups"
+
+# 3. WYBRANE GRUPY
+specific_conversations:
+  - name: "Nazwa Grupy 1"              # Wpisz dokładną nazwę grupy
+    priority: "high"
+    enabled: true
+    actions:
+      - "monitor"
+      - "save_messages"
+      - "extract_history"
+    custom_function: null
+
+  - name: "Nazwa Grupy 2"
+    priority: "high"
+    enabled: true
+    actions:
+      - "monitor"
+      - "save_messages"
+      - "extract_history"
+    custom_function: null
+
+  # Dodaj więcej grup:
+  # - name: "Kolejna Grupa"
+  #   priority: "medium"
+  #   enabled: true
+  #   actions: ["monitor", "save_messages"]
+  #   custom_function: null
+
+# 4. FILTRY
+filters:
+  exclude_archived: true
+  exclude_muted: false
+  only_unread: false
+  min_message_count: 0
+
+# 5. POBIERANE DANE
+data_to_collect:
+  messages:
+    enabled: true
+    include_reactions: true          # Reakcje (👍, ❤️, etc.)
+    include_timestamps: true         # Kiedy wysłane
+    include_sender_info: true        # Kto wysłał
+
+  media:
+    enabled: true
+    types:
+      - "images"
+      - "videos"
+      - "audio"
+      - "documents"
+    download_files: true             # Pobierz pliki lokalnie
+
+  metadata:
+    enabled: true
+    include_read_status: true
+    include_delivery_status: true
+    include_conversation_info: true
+
+  user_info:
+    enabled: true                    # Info o członkach grupy
+    fields:
+      - "name"
+      - "profile_picture"
+      - "status"
+
+# 6. ZAKRES CZASOWY - CAŁA HISTORIA
+time_range:
+  mode: "historical"
+  start_date: null                   # Od początku
+  end_date: null                     # Do teraz
+  last_n_days: null                  # lub np. 365 dla ostatniego roku
+  last_n_messages: null              # lub np. 5000 dla ostatnich 5k wiadomości
+
+# 7. MONITORING (wyłączony dla ekstrakcji)
+monitoring:
+  enabled: false
+  detect_new_messages: false
+  detect_typing: false
+  detect_online_status: false
+
+# 8. POWIADOMIENIA
+notifications:
+  enabled: true
+  methods:
+    - "console"
+    - "log_file"
+  triggers:
+    on_new_message: true
+
+# 9. EXPORT DANYCH
+export:
+  enabled: true
+  auto_export: true
+  export_interval: 600               # Co 10 minut podczas ekstrakcji
+
+  formats:
+    - "json"                         # Strukturalne dane
+    - "html"                         # Czytelne w przeglądarce
+    - "csv"                          # Dla Excela
+
+  destination: "./exports/initial/"
+
+  file_naming:
+    pattern: "{date}_GROUP_{conversation}_INITIAL_{format}"
+
+  compression:
+    enabled: true
+    format: "zip"
+
+export_content:
+  include_metadata: true
+  include_messages: true
+  include_media_links: true
+  include_timestamps: true
+  include_participants: true
+  include_statistics: true
+
+# 10. AKCJE
+on_new_message:
+  actions:
+    - type: "log"
+      enabled: true
+
+    - type: "save_to_file"
+      enabled: true
+      file_path: "./data/groups_initial.json"
+      format: "json"
+
+# 11. PARAMETRY
+polling_interval: 5
+wait_timeout: 15
+headless_mode: false                 # Widoczna przeglądarka (do debugowania)
+
+# 12. BEZPIECZEŃSTWO
+security:
+  respect_rate_limits: true
+  random_delays: true
+  min_delay: 2
+  max_delay: 5
+  max_actions_per_hour: 200
+
+# 13. DEBUG
+debugging:
+  enabled: true
+  save_screenshots: true
+  save_page_source: true
+  screenshot_on_error: true
+  verbose_logging: true
+  log_level: "INFO"
+  log_file: "./logs/bot_initial.log"
