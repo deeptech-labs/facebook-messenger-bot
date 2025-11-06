@@ -14,8 +14,45 @@ from src import utils
 from src.debug_logger import DebugLogger
 from config import settings
 import logging
+import re
 
 logger = logging.getLogger(__name__)
+
+
+def sanitize_folder_name(name):
+    """
+    Sanityzuje nazwę folderu, usuwając niedozwolone znaki.
+
+    Args:
+        name: Nazwa do sanityzacji
+
+    Returns:
+        str: Bezpieczna nazwa folderu
+    """
+    if not name:
+        return "unknown"
+
+    # Usuń niedozwolone znaki z nazwy folderu
+    # Dozwolone: litery, cyfry, spacje, myślniki, podkreślniki
+    sanitized = re.sub(r'[<>:"/\\|?*]', '', name)
+
+    # Zamień wielokrotne spacje na pojedyncze
+    sanitized = re.sub(r'\s+', ' ', sanitized)
+
+    # Usuń spacje z początku i końca
+    sanitized = sanitized.strip()
+
+    # Zamień spacje na podkreślniki
+    sanitized = sanitized.replace(' ', '_')
+
+    # Ogranicz długość nazwy do 100 znaków
+    sanitized = sanitized[:100]
+
+    # Jeśli po sanityzacji nic nie zostało, użyj "unknown"
+    if not sanitized:
+        return "unknown"
+
+    return sanitized
 
 
 class MessengerMonitor:
@@ -245,14 +282,15 @@ class MessengerMonitor:
 
     def save_conversations_to_file(self, conversations=None, output_dir='data'):
         """
-        Zapisuje listę wszystkich widocznych czatów do pliku w formacie JSON.
+        Zapisuje listę wszystkich widocznych czatów do plików w formacie JSON.
+        Każda konwersacja jest zapisywana w osobnym folderze.
 
         Args:
             conversations: Lista konwersacji (jeśli None, pobierze automatycznie)
             output_dir: Katalog wyjściowy (domyślnie 'data')
 
         Returns:
-            str: Ścieżka do zapisanego pliku lub None w przypadku błędu
+            list: Lista ścieżek do zapisanych plików lub None w przypadku błędu
         """
         try:
             # Pobierz konwersacje jeśli nie zostały podane
@@ -266,36 +304,67 @@ class MessengerMonitor:
             # Utwórz katalog data jeśli nie istnieje
             os.makedirs(output_dir, exist_ok=True)
 
-            # Wygeneruj nazwę pliku z timestamp
+            # Wygeneruj timestamp dla tej sesji zapisywania
             timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-            filename = f"conversations_{timestamp}.json"
-            filepath = os.path.join(output_dir, filename)
 
-            # Przygotuj dane do zapisania (bez elementu Selenium)
-            conversations_data = []
+            saved_files = []
+            saved_count = 0
+            skipped_count = 0
+
+            # Zapisz każdą konwersację w osobnym folderze
             for conv in conversations:
-                conversations_data.append({
-                    'name': conv.get('name'),
-                    'url': conv.get('url'),
-                    'timestamp': datetime.now().isoformat()
-                })
+                try:
+                    # Pobierz nazwę konwersacji
+                    conv_name = conv.get('name')
+                    if not conv_name:
+                        skipped_count += 1
+                        logger.warning("⚠️ Pominięto konwersację bez nazwy")
+                        continue
 
-            # Zapisz do pliku JSON
-            with open(filepath, 'w', encoding='utf-8') as f:
-                json.dump({
-                    'timestamp': datetime.now().isoformat(),
-                    'total_count': len(conversations_data),
-                    'conversations': conversations_data
-                }, f, ensure_ascii=False, indent=2)
+                    # Sanityzuj nazwę folderu
+                    folder_name = sanitize_folder_name(conv_name)
 
-            logger.info(f"✅ Zapisano {len(conversations_data)} czatów do pliku: {filepath}")
-            print(f"✅ Zapisano {len(conversations_data)} czatów do pliku: {filepath}")
+                    # Utwórz folder dla konwersacji
+                    conv_dir = os.path.join(output_dir, folder_name)
+                    os.makedirs(conv_dir, exist_ok=True)
 
-            return filepath
+                    # Wygeneruj nazwę pliku z timestamp
+                    filename = f"conversation_{timestamp}.json"
+                    filepath = os.path.join(conv_dir, filename)
+
+                    # Przygotuj dane do zapisania
+                    conversation_data = {
+                        'name': conv.get('name'),
+                        'url': conv.get('url'),
+                        'timestamp': datetime.now().isoformat(),
+                        'folder': folder_name
+                    }
+
+                    # Zapisz do pliku JSON
+                    with open(filepath, 'w', encoding='utf-8') as f:
+                        json.dump(conversation_data, f, ensure_ascii=False, indent=2)
+
+                    saved_files.append(filepath)
+                    saved_count += 1
+                    logger.debug(f"✅ Zapisano konwersację '{conv_name}' do: {filepath}")
+
+                except Exception as e:
+                    skipped_count += 1
+                    logger.error(f"❌ Błąd podczas zapisywania konwersacji '{conv.get('name', 'unknown')}': {e}")
+                    continue
+
+            # Podsumowanie
+            logger.info(f"✅ Zapisano {saved_count} czatów w folderze: {output_dir}")
+            logger.info(f"   Pominiętych: {skipped_count}")
+            print(f"✅ Zapisano {saved_count} czatów w folderze: {output_dir}")
+            if skipped_count > 0:
+                print(f"   Pominiętych: {skipped_count}")
+
+            return saved_files
 
         except Exception as e:
-            logger.error(f"❌ Błąd podczas zapisywania czatów do pliku: {e}")
-            print(f"❌ Błąd podczas zapisywania czatów do pliku: {e}")
+            logger.error(f"❌ Błąd podczas zapisywania czatów do plików: {e}")
+            print(f"❌ Błąd podczas zapisywania czatów do plików: {e}")
             return None
 
     def get_unread_conversations(self):
