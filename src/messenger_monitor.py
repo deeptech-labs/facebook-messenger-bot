@@ -249,7 +249,7 @@ class MessengerMonitor:
 
         Args:
             conversations: Lista konwersacji (jeśli None, pobierze automatycznie)
-            output_dir: Katalog wyjściowy (domyślnie 'data')
+            output_dir: Katalog główny wyjściowy (domyślnie 'data')
 
         Returns:
             str: Ścieżka do zapisanego pliku lub None w przypadku błędu
@@ -263,13 +263,17 @@ class MessengerMonitor:
                 logger.warning("⚠️ Brak czatów do zapisania")
                 return None
 
-            # Utwórz katalog data jeśli nie istnieje
-            os.makedirs(output_dir, exist_ok=True)
+            # Pobierz nazwę z konfiguracji (np. 'daily', 'initial')
+            config_name = self.config.get('name', 'default')
+
+            # Utwórz katalog data/{name}/ jeśli nie istnieje
+            target_dir = os.path.join(output_dir, config_name)
+            os.makedirs(target_dir, exist_ok=True)
 
             # Wygeneruj nazwę pliku z timestamp
             timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
             filename = f"conversations_{timestamp}.json"
-            filepath = os.path.join(output_dir, filename)
+            filepath = os.path.join(target_dir, filename)
 
             # Przygotuj dane do zapisania (bez elementu Selenium)
             conversations_data = []
