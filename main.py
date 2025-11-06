@@ -79,6 +79,10 @@ if __name__ == "__main__":
             # Inicjalizacja monitora z konfiguracją
             monitor = MessengerMonitor(bot.driver, config=config)
 
+            # Wyświetl listę wszystkich dostępnych czatów
+            print("\n📋 Pobieranie listy czatów...")
+            monitor.list_all_conversations()
+
             # Uruchomienie pętli monitorującej (interwał z konfiguracji)
             print(f"\n🔄 Rozpoczynam monitorowanie (interwał: {config.get_polling_interval()}s)...")
             print("   Naciśnij Ctrl+C aby zatrzymać.\n")

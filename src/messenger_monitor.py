@@ -24,6 +24,143 @@ class MessengerMonitor:
 
         # Loguj konfigurację monitorowania
         logger.info(f"Monitor zainicjalizowany - tryb: {self.config.get_mode()}, zakres: {self.config.get_scope()}")
+
+    def get_all_conversations(self):
+        """Pobiera listę wszystkich dostępnych konwersacji z Messengera."""
+        try:
+            conversations = []
+
+            # Różne selektory dla elementów czatów (Facebook często zmienia interfejs)
+            chat_selectors = [
+                # Selektor dla kontenera z czatami
+                "div[role='navigation'] div[role='grid'] div[role='gridcell']",
+                "div[role='navigation'] a[role='link']",
+                "div[aria-label*='Czat']",
+                "div[aria-label*='Conversation']",
+                # Fallback - ogólny selektor dla linków czatów
+                "a[href*='/t/']",
+            ]
+
+            for selector in chat_selectors:
+                try:
+                    chat_elements = self.driver.find_elements(By.CSS_SELECTOR, selector)
+
+                    if chat_elements:
+                        logger.debug(f"Znaleziono {len(chat_elements)} elementów dla selektora: {selector}")
+
+                        for element in chat_elements:
+                            try:
+                                # Pobierz nazwę czatu
+                                chat_name = None
+
+                                # Próbuj różne metody pobrania nazwy
+                                try:
+                                    # Szukaj elementu span z nazwą użytkownika
+                                    name_element = element.find_element(By.CSS_SELECTOR, "span[dir='auto']")
+                                    chat_name = name_element.text.strip()
+                                except:
+                                    pass
+
+                                if not chat_name:
+                                    try:
+                                        # Próbuj pobrać z aria-label
+                                        chat_name = element.get_attribute("aria-label")
+                                    except:
+                                        pass
+
+                                if not chat_name:
+                                    # Użyj całego tekstu elementu jako fallback
+                                    chat_name = element.text.strip()
+
+                                # Pobierz URL czatu (jeśli istnieje)
+                                chat_url = None
+                                try:
+                                    if element.tag_name == 'a':
+                                        chat_url = element.get_attribute("href")
+                                    else:
+                                        link_element = element.find_element(By.TAG_NAME, "a")
+                                        chat_url = link_element.get_attribute("href")
+                                except:
+                                    pass
+
+                                # Dodaj do listy jeśli mamy nazwę
+                                if chat_name and len(chat_name) > 0:
+                                    # Usuń zbędne białe znaki i sprawdź duplikaty
+                                    chat_name = ' '.join(chat_name.split())
+
+                                    # Sprawdź czy to nie duplikat
+                                    if not any(conv['name'] == chat_name for conv in conversations):
+                                        conversations.append({
+                                            'name': chat_name,
+                                            'url': chat_url,
+                                            'element': element
+                                        })
+
+                            except Exception as e:
+                                logger.debug(f"Błąd podczas przetwarzania elementu czatu: {e}")
+                                continue
+
+                        # Jeśli znaleźliśmy czaty, przerwij pętlę selektorów
+                        if conversations:
+                            break
+
+                except Exception as e:
+                    logger.debug(f"Błąd dla selektora '{selector}': {e}")
+                    continue
+
+            return conversations
+
+        except Exception as e:
+            logger.error(f"Błąd podczas pobierania listy konwersacji: {e}")
+            if self.config.should_screenshot_on_error():
+                self.debug_logger.save_error_snapshot(self.driver, e)
+            return []
+
+    def list_all_conversations(self):
+        """Wyświetla w logach listę wszystkich dostępnych czatów."""
+        logger.info("📋 Pobieranie listy wszystkich dostępnych czatów...")
+
+        conversations = self.get_all_conversations()
+
+        if not conversations:
+            logger.warning("⚠️ Nie znaleziono żadnych czatów lub nie udało się ich pobrać")
+            return
+
+        logger.info(f"\n{'='*70}")
+        logger.info(f"📬 DOSTĘPNE CZATY W MESSENGERZE ({len(conversations)})")
+        logger.info(f"{'='*70}")
+
+        for i, conv in enumerate(conversations, 1):
+            name = conv.get('name', 'Nieznana nazwa')
+            url = conv.get('url', 'Brak URL')
+
+            # Skróć URL dla czytelności
+            if url and len(url) > 50:
+                url_display = url[:47] + "..."
+            else:
+                url_display = url
+
+            logger.info(f"{i:3d}. {name}")
+            if url and url != 'Brak URL':
+                logger.info(f"      URL: {url_display}")
+
+        logger.info(f"{'='*70}\n")
+
+        # Zapisz snapshot z listą czatów (jeśli debugging włączony)
+        if self.config.should_save_screenshots():
+            additional_info = f"Znaleziono {len(conversations)} czatów:\n"
+            for i, conv in enumerate(conversations[:10], 1):  # Pokaż pierwsze 10
+                additional_info += f"{i}. {conv.get('name', 'Nieznana nazwa')}\n"
+            if len(conversations) > 10:
+                additional_info += f"... i {len(conversations) - 10} więcej"
+
+            self.debug_logger.save_debug_snapshot(
+                self.driver,
+                "conversations_list",
+                additional_info
+            )
+
+        return conversations
     
     def get_unread_conversations(self):
         """Znajduje nieprzeczytane rozmowy (uproszczony przykład)."""
