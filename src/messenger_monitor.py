@@ -28,10 +28,35 @@ class MessengerMonitor:
         # Loguj konfigurację monitorowania
         logger.info(f"Monitor zainicjalizowany - tryb: {self.config.get_mode()}, zakres: {self.config.get_scope()}")
 
-    def get_all_conversations(self):
-        """Pobiera listę wszystkich dostępnych konwersacji z Messengera."""
+    def get_all_conversations(self, max_scrolls=20, scroll_pause=1.5):
+        """
+        Pobiera listę wszystkich dostępnych konwersacji z Messengera.
+
+        Args:
+            max_scrolls: Maksymalna liczba przewinięć (domyślnie 20)
+            scroll_pause: Czas pauzy między przewinięciami w sekundach (domyślnie 1.5s)
+        """
         try:
             conversations = []
+
+            # Różne selektory dla kontenera czatów (do scrollowania)
+            container_selectors = [
+                "div[role='navigation']",
+                "div[aria-label='Chats']",
+                "div[aria-label='Conversations']",
+            ]
+
+            # Znajdź kontener z czatami
+            scroll_container = None
+            for selector in container_selectors:
+                try:
+                    containers = self.driver.find_elements(By.CSS_SELECTOR, selector)
+                    if containers:
+                        scroll_container = containers[0]
+                        logger.debug(f"Znaleziono kontener czatów: {selector}")
+                        break
+                except:
+                    continue
 
             # Różne selektory dla elementów czatów (Facebook często zmienia interfejs)
             chat_selectors = [
@@ -44,73 +69,113 @@ class MessengerMonitor:
                 "a[href*='/t/']",
             ]
 
-            for selector in chat_selectors:
-                try:
-                    chat_elements = self.driver.find_elements(By.CSS_SELECTOR, selector)
+            # Scrolluj i zbieraj czaty
+            logger.info(f"🔄 Rozpoczynam scrollowanie aby załadować wszystkie czaty...")
+            previous_count = 0
+            no_change_count = 0
 
-                    if chat_elements:
-                        logger.debug(f"Znaleziono {len(chat_elements)} elementów dla selektora: {selector}")
+            for scroll_iteration in range(max_scrolls):
+                # Zbierz aktualnie widoczne czaty
+                for selector in chat_selectors:
+                    try:
+                        chat_elements = self.driver.find_elements(By.CSS_SELECTOR, selector)
 
-                        for element in chat_elements:
-                            try:
-                                # Pobierz nazwę czatu
-                                chat_name = None
+                        if chat_elements:
+                            logger.debug(f"Znaleziono {len(chat_elements)} elementów dla selektora: {selector}")
 
-                                # Próbuj różne metody pobrania nazwy
+                            for element in chat_elements:
                                 try:
-                                    # Szukaj elementu span z nazwą użytkownika
-                                    name_element = element.find_element(By.CSS_SELECTOR, "span[dir='auto']")
-                                    chat_name = name_element.text.strip()
-                                except:
-                                    pass
+                                    # Pobierz nazwę czatu
+                                    chat_name = None
 
-                                if not chat_name:
+                                    # Próbuj różne metody pobrania nazwy
                                     try:
-                                        # Próbuj pobrać z aria-label
-                                        chat_name = element.get_attribute("aria-label")
+                                        # Szukaj elementu span z nazwą użytkownika
+                                        name_element = element.find_element(By.CSS_SELECTOR, "span[dir='auto']")
+                                        chat_name = name_element.text.strip()
                                     except:
                                         pass
 
-                                if not chat_name:
-                                    # Użyj całego tekstu elementu jako fallback
-                                    chat_name = element.text.strip()
+                                    if not chat_name:
+                                        try:
+                                            # Próbuj pobrać z aria-label
+                                            chat_name = element.get_attribute("aria-label")
+                                        except:
+                                            pass
 
-                                # Pobierz URL czatu (jeśli istnieje)
-                                chat_url = None
-                                try:
-                                    if element.tag_name == 'a':
-                                        chat_url = element.get_attribute("href")
-                                    else:
-                                        link_element = element.find_element(By.TAG_NAME, "a")
-                                        chat_url = link_element.get_attribute("href")
-                                except:
-                                    pass
+                                    if not chat_name:
+                                        # Użyj całego tekstu elementu jako fallback
+                                        chat_name = element.text.strip()
 
-                                # Dodaj do listy jeśli mamy nazwę
-                                if chat_name and len(chat_name) > 0:
-                                    # Usuń zbędne białe znaki i sprawdź duplikaty
-                                    chat_name = ' '.join(chat_name.split())
+                                    # Pobierz URL czatu (jeśli istnieje)
+                                    chat_url = None
+                                    try:
+                                        if element.tag_name == 'a':
+                                            chat_url = element.get_attribute("href")
+                                        else:
+                                            link_element = element.find_element(By.TAG_NAME, "a")
+                                            chat_url = link_element.get_attribute("href")
+                                    except:
+                                        pass
 
-                                    # Sprawdź czy to nie duplikat
-                                    if not any(conv['name'] == chat_name for conv in conversations):
-                                        conversations.append({
-                                            'name': chat_name,
-                                            'url': chat_url,
-                                            'element': element
-                                        })
+                                    # Dodaj do listy jeśli mamy nazwę
+                                    if chat_name and len(chat_name) > 0:
+                                        # Usuń zbędne białe znaki i sprawdź duplikaty
+                                        chat_name = ' '.join(chat_name.split())
 
-                            except Exception as e:
-                                logger.debug(f"Błąd podczas przetwarzania elementu czatu: {e}")
-                                continue
+                                        # Sprawdź czy to nie duplikat
+                                        if not any(conv['name'] == chat_name for conv in conversations):
+                                            conversations.append({
+                                                'name': chat_name,
+                                                'url': chat_url,
+                                                'element': element
+                                            })
 
-                        # Jeśli znaleźliśmy czaty, przerwij pętlę selektorów
-                        if conversations:
-                            break
+                                except Exception as e:
+                                    logger.debug(f"Błąd podczas przetwarzania elementu czatu: {e}")
+                                    continue
+
+                            # Jeśli znaleźliśmy czaty, przerwij pętlę selektorów
+                            if conversations:
+                                break
+
+                    except Exception as e:
+                        logger.debug(f"Błąd dla selektora '{selector}': {e}")
+                        continue
+
+                current_count = len(conversations)
+                logger.info(f"   Scroll {scroll_iteration + 1}/{max_scrolls}: Znaleziono {current_count} czatów")
+
+                # Sprawdź czy liczba czatów się nie zmienia
+                if current_count == previous_count:
+                    no_change_count += 1
+                    if no_change_count >= 3:  # Jeśli 3 razy z rzędu brak zmian, zakończ
+                        logger.info(f"✅ Osiągnięto koniec listy czatów (brak nowych czatów przez 3 scrolle)")
+                        break
+                else:
+                    no_change_count = 0
+
+                previous_count = current_count
+
+                # Scrolluj w dół
+                try:
+                    if scroll_container:
+                        # Scrolluj w kontenerze czatów
+                        self.driver.execute_script(
+                            "arguments[0].scrollTop = arguments[0].scrollHeight",
+                            scroll_container
+                        )
+                    else:
+                        # Fallback - scrolluj całą stronę
+                        self.driver.execute_script("window.scrollTo(0, document.body.scrollHeight);")
+
+                    # Poczekaj na załadowanie nowych czatów
+                    time.sleep(scroll_pause)
 
                 except Exception as e:
-                    logger.debug(f"Błąd dla selektora '{selector}': {e}")
-                    continue
+                    logger.debug(f"Błąd podczas scrollowania: {e}")
 
+            logger.info(f"✅ Zakończono scrollowanie. Łącznie znaleziono {len(conversations)} czatów")
             return conversations
 
         except Exception as e:

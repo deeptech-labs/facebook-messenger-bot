@@ -38,6 +38,15 @@ async def lifespan(app: FastAPI):
     if bot_instance.navigate_to_messenger():
         print("Bot uruchomiony i gotowy do pracy")
         monitor = MessengerMonitor(bot_instance.driver)
+
+        # Pobierz i zapisz listę czatów
+        print("\n📋 Pobieranie listy czatów...")
+        conversations = monitor.list_all_conversations()
+
+        # Zapisz wszystkie widoczne czaty do folderu data
+        print("\n💾 Zapisywanie widocznych czatów do folderu data...")
+        monitor.save_conversations_to_file(conversations)
+
         # Uruchom monitoring w tle
         monitor_task = asyncio.create_task(
             asyncio.to_thread(monitor.run_monitoring_loop, settings.POLLING_INTERVAL)
