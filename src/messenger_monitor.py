@@ -3,6 +3,9 @@
 Klasa do monitorowania wiadomości w Messenger.
 """
 import time
+import os
+import json
+from datetime import datetime
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
@@ -161,7 +164,62 @@ class MessengerMonitor:
             )
 
         return conversations
-    
+
+    def save_conversations_to_file(self, conversations=None, output_dir='data'):
+        """
+        Zapisuje listę wszystkich widocznych czatów do pliku w formacie JSON.
+
+        Args:
+            conversations: Lista konwersacji (jeśli None, pobierze automatycznie)
+            output_dir: Katalog wyjściowy (domyślnie 'data')
+
+        Returns:
+            str: Ścieżka do zapisanego pliku lub None w przypadku błędu
+        """
+        try:
+            # Pobierz konwersacje jeśli nie zostały podane
+            if conversations is None:
+                conversations = self.get_all_conversations()
+
+            if not conversations:
+                logger.warning("⚠️ Brak czatów do zapisania")
+                return None
+
+            # Utwórz katalog data jeśli nie istnieje
+            os.makedirs(output_dir, exist_ok=True)
+
+            # Wygeneruj nazwę pliku z timestamp
+            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+            filename = f"conversations_{timestamp}.json"
+            filepath = os.path.join(output_dir, filename)
+
+            # Przygotuj dane do zapisania (bez elementu Selenium)
+            conversations_data = []
+            for conv in conversations:
+                conversations_data.append({
+                    'name': conv.get('name'),
+                    'url': conv.get('url'),
+                    'timestamp': datetime.now().isoformat()
+                })
+
+            # Zapisz do pliku JSON
+            with open(filepath, 'w', encoding='utf-8') as f:
+                json.dump({
+                    'timestamp': datetime.now().isoformat(),
+                    'total_count': len(conversations_data),
+                    'conversations': conversations_data
+                }, f, ensure_ascii=False, indent=2)
+
+            logger.info(f"✅ Zapisano {len(conversations_data)} czatów do pliku: {filepath}")
+            print(f"✅ Zapisano {len(conversations_data)} czatów do pliku: {filepath}")
+
+            return filepath
+
+        except Exception as e:
+            logger.error(f"❌ Błąd podczas zapisywania czatów do pliku: {e}")
+            print(f"❌ Błąd podczas zapisywania czatów do pliku: {e}")
+            return None
+
     def get_unread_conversations(self):
         """Znajduje nieprzeczytane rozmowy (uproszczony przykład)."""
         try:
