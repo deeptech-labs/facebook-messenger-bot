@@ -367,6 +367,357 @@ class MessengerMonitor:
             print(f"❌ Błąd podczas zapisywania czatów do plików: {e}")
             return None
 
+    def open_conversation(self, conversation_url, wait_time=3):
+        """
+        Otwiera konkretną konwersację używając URL.
+
+        Args:
+            conversation_url: URL konwersacji do otwarcia
+            wait_time: Czas oczekiwania po otwarciu (w sekundach)
+
+        Returns:
+            bool: True jeśli konwersacja została otwarta, False w przeciwnym razie
+        """
+        try:
+            if not conversation_url:
+                logger.warning("⚠️ Brak URL konwersacji")
+                return False
+
+            logger.info(f"🔗 Otwieranie konwersacji: {conversation_url}")
+            self.driver.get(conversation_url)
+            time.sleep(wait_time)
+
+            # Sprawdź czy udało się otworzyć konwersację
+            current_url = self.driver.current_url
+            if "messages/t/" in current_url or "messenger.com" in current_url:
+                logger.info("✅ Konwersacja otwarta pomyślnie")
+                return True
+            else:
+                logger.warning(f"⚠️ Nie udało się otworzyć konwersacji. Current URL: {current_url}")
+                return False
+
+        except Exception as e:
+            logger.error(f"❌ Błąd podczas otwierania konwersacji: {e}")
+            if self.config.should_screenshot_on_error():
+                self.debug_logger.save_error_snapshot(self.driver, e)
+            return False
+
+    def scroll_and_load_messages(self, max_scrolls=50, scroll_pause=2.0):
+        """
+        Scrolluje konwersację w górę aby załadować starsze wiadomości.
+
+        Args:
+            max_scrolls: Maksymalna liczba przewinięć
+            scroll_pause: Pauza między przewinięciami (w sekundach)
+
+        Returns:
+            bool: True jeśli scrollowanie zakończyło się pomyślnie
+        """
+        try:
+            logger.info(f"📜 Rozpoczynam scrollowanie wiadomości (max {max_scrolls} scrolli)...")
+
+            # Znajdź kontener z wiadomościami
+            message_container_selectors = [
+                "div[role='main']",
+                "div[aria-label='Messages']",
+                "div[aria-label='Wiadomości']",
+            ]
+
+            message_container = None
+            for selector in message_container_selectors:
+                try:
+                    containers = self.driver.find_elements(By.CSS_SELECTOR, selector)
+                    if containers:
+                        message_container = containers[0]
+                        logger.debug(f"Znaleziono kontener wiadomości: {selector}")
+                        break
+                except:
+                    continue
+
+            previous_height = 0
+            no_change_count = 0
+
+            for scroll_num in range(max_scrolls):
+                try:
+                    # Scrolluj do góry kontenera
+                    if message_container:
+                        current_scroll = self.driver.execute_script(
+                            "return arguments[0].scrollTop",
+                            message_container
+                        )
+
+                        # Scrolluj do samej góry
+                        self.driver.execute_script(
+                            "arguments[0].scrollTop = 0",
+                            message_container
+                        )
+
+                        time.sleep(scroll_pause)
+
+                        new_scroll = self.driver.execute_script(
+                            "return arguments[0].scrollTop",
+                            message_container
+                        )
+
+                        # Sprawdź czy pozycja się zmieniła
+                        if current_scroll == new_scroll or new_scroll == 0:
+                            no_change_count += 1
+                            if no_change_count >= 3:
+                                logger.info(f"✅ Osiągnięto początek konwersacji po {scroll_num + 1} scrollach")
+                                break
+                        else:
+                            no_change_count = 0
+
+                        logger.debug(f"   Scroll {scroll_num + 1}/{max_scrolls}: position {new_scroll}")
+
+                except Exception as e:
+                    logger.debug(f"Błąd podczas scrollowania: {e}")
+                    continue
+
+            logger.info("✅ Scrollowanie zakończone")
+            return True
+
+        except Exception as e:
+            logger.error(f"❌ Błąd podczas scrollowania wiadomości: {e}")
+            if self.config.should_screenshot_on_error():
+                self.debug_logger.save_error_snapshot(self.driver, e)
+            return False
+
+    def extract_messages_from_conversation(self):
+        """
+        Ekstraktuje wiadomości z aktualnie otwartej konwersacji.
+
+        Returns:
+            list: Lista wiadomości (dictionaries z danymi wiadomości)
+        """
+        try:
+            logger.info("📥 Ekstraktuję wiadomości z konwersacji...")
+
+            messages = []
+
+            # Różne selektory dla wiadomości
+            message_selectors = [
+                "div[role='row']",
+                "div[data-scope='messages_table']",
+                "div[aria-label*='You sent']",
+                "div[aria-label*='said']",
+            ]
+
+            message_elements = []
+            for selector in message_selectors:
+                try:
+                    elements = self.driver.find_elements(By.CSS_SELECTOR, selector)
+                    if elements:
+                        message_elements = elements
+                        logger.debug(f"Znaleziono {len(elements)} elementów wiadomości dla selektora: {selector}")
+                        break
+                except:
+                    continue
+
+            if not message_elements:
+                logger.warning("⚠️ Nie znaleziono żadnych wiadomości")
+                return messages
+
+            logger.info(f"📊 Przetwarzam {len(message_elements)} elementów wiadomości...")
+
+            for idx, element in enumerate(message_elements):
+                try:
+                    # Pobierz tekst wiadomości
+                    message_text = element.text.strip()
+
+                    # Pobierz aria-label (często zawiera dodatkowe info)
+                    aria_label = element.get_attribute("aria-label")
+
+                    # Pobierz timestamp jeśli dostępny
+                    timestamp_element = None
+                    try:
+                        timestamp_element = element.find_element(By.CSS_SELECTOR, "span[aria-label*=':']")
+                    except:
+                        pass
+
+                    timestamp = timestamp_element.get_attribute("aria-label") if timestamp_element else None
+
+                    # Dodaj wiadomość jeśli ma treść
+                    if message_text and len(message_text) > 0:
+                        message_data = {
+                            'index': idx,
+                            'text': message_text,
+                            'aria_label': aria_label,
+                            'timestamp': timestamp,
+                            'extracted_at': datetime.now().isoformat()
+                        }
+                        messages.append(message_data)
+
+                except Exception as e:
+                    logger.debug(f"Błąd podczas przetwarzania wiadomości {idx}: {e}")
+                    continue
+
+            logger.info(f"✅ Wyekstraktowano {len(messages)} wiadomości")
+            return messages
+
+        except Exception as e:
+            logger.error(f"❌ Błąd podczas ekstraktowania wiadomości: {e}")
+            if self.config.should_screenshot_on_error():
+                self.debug_logger.save_error_snapshot(self.driver, e)
+            return []
+
+    def save_messages_to_folder(self, messages, conversation_name, output_dir='data'):
+        """
+        Zapisuje wiadomości do folderu konwersacji.
+
+        Args:
+            messages: Lista wiadomości do zapisania
+            conversation_name: Nazwa konwersacji
+            output_dir: Katalog bazowy (domyślnie 'data')
+
+        Returns:
+            str: Ścieżka do zapisanego pliku lub None
+        """
+        try:
+            if not messages:
+                logger.warning("⚠️ Brak wiadomości do zapisania")
+                return None
+
+            # Sanityzuj nazwę folderu
+            folder_name = sanitize_folder_name(conversation_name)
+
+            # Utwórz folder dla konwersacji
+            conv_dir = os.path.join(output_dir, folder_name)
+            os.makedirs(conv_dir, exist_ok=True)
+
+            # Wygeneruj nazwę pliku z timestamp
+            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+            filename = f"messages_{timestamp}.json"
+            filepath = os.path.join(conv_dir, filename)
+
+            # Przygotuj dane do zapisania
+            data = {
+                'conversation_name': conversation_name,
+                'folder': folder_name,
+                'message_count': len(messages),
+                'extracted_at': datetime.now().isoformat(),
+                'messages': messages
+            }
+
+            # Zapisz do pliku JSON
+            with open(filepath, 'w', encoding='utf-8') as f:
+                json.dump(data, f, ensure_ascii=False, indent=2)
+
+            logger.info(f"✅ Zapisano {len(messages)} wiadomości do: {filepath}")
+            print(f"✅ Zapisano {len(messages)} wiadomości do: {filepath}")
+
+            return filepath
+
+        except Exception as e:
+            logger.error(f"❌ Błąd podczas zapisywania wiadomości: {e}")
+            print(f"❌ Błąd podczas zapisywania wiadomości: {e}")
+            return None
+
+    def extract_and_save_all_conversations(self, conversations=None, output_dir='data', max_conversations=None):
+        """
+        Ekstraktuje i zapisuje wiadomości ze wszystkich konwersacji.
+
+        Args:
+            conversations: Lista konwersacji (jeśli None, pobierze automatycznie)
+            output_dir: Katalog wyjściowy
+            max_conversations: Maksymalna liczba konwersacji do przetworzenia (None = wszystkie)
+
+        Returns:
+            dict: Statystyki ekstrakcji
+        """
+        try:
+            # Pobierz konwersacje jeśli nie zostały podane
+            if conversations is None:
+                conversations = self.get_all_conversations()
+
+            if not conversations:
+                logger.warning("⚠️ Brak konwersacji do przetworzenia")
+                return None
+
+            # Ogranicz liczbę konwersacji jeśli podano
+            if max_conversations:
+                conversations = conversations[:max_conversations]
+
+            logger.info(f"🚀 Rozpoczynam ekstrakcję wiadomości z {len(conversations)} konwersacji...")
+            print(f"\n🚀 Rozpoczynam ekstrakcję wiadomości z {len(conversations)} konwersacji...")
+
+            stats = {
+                'total': len(conversations),
+                'success': 0,
+                'failed': 0,
+                'total_messages': 0
+            }
+
+            for idx, conv in enumerate(conversations, 1):
+                try:
+                    conv_name = conv.get('name', 'Unknown')
+                    conv_url = conv.get('url')
+
+                    logger.info(f"\n[{idx}/{len(conversations)}] Przetwarzam: {conv_name}")
+                    print(f"\n[{idx}/{len(conversations)}] Przetwarzam: {conv_name}")
+
+                    if not conv_url:
+                        logger.warning(f"⚠️ Brak URL dla konwersacji: {conv_name}")
+                        stats['failed'] += 1
+                        continue
+
+                    # Otwórz konwersację
+                    if not self.open_conversation(conv_url):
+                        logger.warning(f"⚠️ Nie udało się otworzyć konwersacji: {conv_name}")
+                        stats['failed'] += 1
+                        continue
+
+                    # Scrolluj aby załadować wiadomości
+                    self.scroll_and_load_messages()
+
+                    # Ekstraktuj wiadomości
+                    messages = self.extract_messages_from_conversation()
+
+                    if messages:
+                        # Zapisz wiadomości
+                        self.save_messages_to_folder(messages, conv_name, output_dir)
+                        stats['success'] += 1
+                        stats['total_messages'] += len(messages)
+                        logger.info(f"✅ Pomyślnie przetworzono: {conv_name} ({len(messages)} wiadomości)")
+                    else:
+                        logger.warning(f"⚠️ Brak wiadomości w konwersacji: {conv_name}")
+                        stats['failed'] += 1
+
+                    # Krótka pauza między konwersacjami
+                    time.sleep(2)
+
+                except Exception as e:
+                    logger.error(f"❌ Błąd podczas przetwarzania konwersacji '{conv_name}': {e}")
+                    stats['failed'] += 1
+                    continue
+
+            # Podsumowanie
+            logger.info(f"\n{'='*70}")
+            logger.info(f"📊 PODSUMOWANIE EKSTRAKCJI")
+            logger.info(f"{'='*70}")
+            logger.info(f"Całkowita liczba konwersacji: {stats['total']}")
+            logger.info(f"Pomyślnie przetworzonych:     {stats['success']}")
+            logger.info(f"Nieudanych:                   {stats['failed']}")
+            logger.info(f"Łączna liczba wiadomości:     {stats['total_messages']}")
+            logger.info(f"{'='*70}\n")
+
+            print(f"\n{'='*70}")
+            print(f"📊 PODSUMOWANIE EKSTRAKCJI")
+            print(f"{'='*70}")
+            print(f"Całkowita liczba konwersacji: {stats['total']}")
+            print(f"Pomyślnie przetworzonych:     {stats['success']}")
+            print(f"Nieudanych:                   {stats['failed']}")
+            print(f"Łączna liczba wiadomości:     {stats['total_messages']}")
+            print(f"{'='*70}\n")
+
+            return stats
+
+        except Exception as e:
+            logger.error(f"❌ Błąd podczas ekstrakcji konwersacji: {e}")
+            if self.config.should_screenshot_on_error():
+                self.debug_logger.save_error_snapshot(self.driver, e)
+            return None
+
     def get_unread_conversations(self):
         """Znajduje nieprzeczytane rozmowy (uproszczony przykład)."""
         try:

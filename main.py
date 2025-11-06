@@ -84,13 +84,35 @@ if __name__ == "__main__":
             conversations = monitor.list_all_conversations()
 
             # Zapisz wszystkie widoczne czaty do folderu data
-            print("\n💾 Zapisywanie widocznych czatów do folderu data...")
+            print("\n💾 Zapisywanie metadanych konwersacji do folderu data...")
             monitor.save_conversations_to_file(conversations)
 
+            # Pobierz i zapisz wiadomości ze wszystkich konwersacji
+            print("\n📥 Ekstraktuję wiadomości z konwersacji...")
+            extract_choice = input("Czy chcesz wyekstraktować wiadomości z konwersacji? (t/n): ").lower()
+
+            if extract_choice == 't':
+                max_conv = input("Ile konwersacji przetwarzać? (Enter = wszystkie, liczba = limit): ").strip()
+                max_conversations = int(max_conv) if max_conv.isdigit() else None
+
+                print(f"\n🚀 Rozpoczynam ekstrakcję wiadomości...")
+                monitor.extract_and_save_all_conversations(
+                    conversations=conversations,
+                    output_dir='data',
+                    max_conversations=max_conversations
+                )
+
+                print("\n✅ Ekstrakcja wiadomości zakończona!")
+
             # Uruchomienie pętli monitorującej (interwał z konfiguracji)
-            print(f"\n🔄 Rozpoczynam monitorowanie (interwał: {config.get_polling_interval()}s)...")
-            print("   Naciśnij Ctrl+C aby zatrzymać.\n")
-            monitor.run_monitoring_loop()
+            monitor_choice = input("\nCzy chcesz uruchomić monitoring? (t/n): ").lower()
+
+            if monitor_choice == 't':
+                print(f"\n🔄 Rozpoczynam monitorowanie (interwał: {config.get_polling_interval()}s)...")
+                print("   Naciśnij Ctrl+C aby zatrzymać.\n")
+                monitor.run_monitoring_loop()
+            else:
+                print("\n✅ Zakończono bez uruchamiania monitoringu.")
         else:
             logger.error("❌ Nie udało się przejść do Messengera")
             print("❌ Nie udało się przejść do Messengera.")

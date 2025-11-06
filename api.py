@@ -43,9 +43,12 @@ async def lifespan(app: FastAPI):
         print("\n📋 Pobieranie listy czatów...")
         conversations = monitor.list_all_conversations()
 
-        # Zapisz wszystkie widoczne czaty do folderu data
-        print("\n💾 Zapisywanie widocznych czatów do folderu data...")
+        # Zapisz metadane konwersacji do folderu data
+        print("\n💾 Zapisywanie metadanych konwersacji do folderu data...")
         monitor.save_conversations_to_file(conversations)
+
+        # Ekstraktuj wiadomości (można wyłączyć jeśli nie jest potrzebne przy starcie API)
+        # monitor.extract_and_save_all_conversations(conversations=conversations, output_dir='data')
 
         # Uruchom monitoring w tle
         monitor_task = asyncio.create_task(
@@ -83,3 +86,35 @@ async def stop_bot():
         bot_instance = None
         return {"message": "Bot stopped"}
     return {"message": "Bot not running"}
+
+@app.post("/extract-messages")
+async def extract_messages(max_conversations: int = None):
+    """
+    Ekstraktuj wiadomości z konwersacji.
+
+    Args:
+        max_conversations: Maksymalna liczba konwersacji do przetworzenia (None = wszystkie)
+    """
+    global bot_instance
+    if not bot_instance:
+        return {"error": "Bot not running"}
+
+    try:
+        monitor = MessengerMonitor(bot_instance.driver)
+        conversations = monitor.get_all_conversations()
+
+        stats = monitor.extract_and_save_all_conversations(
+            conversations=conversations,
+            output_dir='data',
+            max_conversations=max_conversations
+        )
+
+        return {
+            "status": "success",
+            "stats": stats
+        }
+    except Exception as e:
+        return {
+            "status": "error",
+            "error": str(e)
+        }
