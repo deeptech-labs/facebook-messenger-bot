@@ -81,7 +81,11 @@ if __name__ == "__main__":
 
             # Wyświetl listę wszystkich dostępnych czatów
             print("\n📋 Pobieranie listy czatów...")
-            monitor.list_all_conversations()
+            conversations = monitor.list_all_conversations()
+
+            # Zapisz wszystkie widoczne czaty do folderu data
+            print("\n💾 Zapisywanie widocznych czatów do folderu data...")
+            monitor.save_conversations_to_file(conversations)
 
             # Uruchomienie pętli monitorującej (interwał z konfiguracji)
             print(f"\n🔄 Rozpoczynam monitorowanie (interwał: {config.get_polling_interval()}s)...")
