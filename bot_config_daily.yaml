@@ -139,7 +139,7 @@ on_new_message:
 
     - type: "save_to_file"
       enabled: true
-      file_path: "./data/groups_daily.json"
+      file_path: "./data"  # Dane zapisują się w folderach o nazwach grup
       format: "json"
 
     - type: "save_to_database"

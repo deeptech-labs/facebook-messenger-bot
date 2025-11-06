@@ -132,7 +132,7 @@ on_new_message:
 
     - type: "save_to_file"
       enabled: true
-      file_path: "./data/groups_initial.json"
+      file_path: "./data"  # Dane zapisują się w folderach o nazwach grup
       format: "json"
 
 # 11. PARAMETRY
