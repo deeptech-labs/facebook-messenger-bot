@@ -24,6 +24,9 @@ config_parser = ConfigParser(CONFIG_FILE)
 # Ścieżka do WebDriver (nie jest już potrzebna z webdriver-manager, ale zostawiamy dla kompatybilności)
 DRIVER_PATH = os.getenv("DRIVER_PATH", "chromedriver")
 
+# PIN do Messengera (dla przywrócenia historii czatu)
+PIN_MESSENGER = os.getenv("PIN_MESSENGER")
+
 # URL do logowania
 LOGIN_URL = "https://www.facebook.com/"
 MESSENGER_URL = "https://www.messenger.com/"

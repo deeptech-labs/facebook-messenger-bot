@@ -124,6 +124,50 @@ class FacebookBot:
             delay = random.uniform(min_delay, max_delay)
             time.sleep(delay)
 
+    def handle_pin_dialog(self):
+        """Obsługuje okno dialogowe z prośbą o PIN do przywrócenia historii czatu."""
+        try:
+            # Sprawdź czy pojawił się dialog z PINem
+            pin_input = None
+            try:
+                pin_input = self.driver.find_element(By.ID, "mw-numeric-code-input-prevent-composer-focus-steal")
+                logger.info("🔐 Wykryto okno dialogowe z prośbą o PIN...")
+            except:
+                # Dialog nie pojawił się, to normalne
+                return True
+
+            # Pobierz PIN z zmiennej środowiskowej
+            pin = settings.PIN_MESSENGER
+            if not pin:
+                logger.warning("⚠️ Zmienna PIN_MESSENGER nie jest ustawiona w pliku .env")
+                logger.warning("⚠️ Pomijam wprowadzanie PINu - może to spowodować brak dostępu do historii czatu")
+                return False
+
+            # Wprowadź PIN
+            logger.info(f"📝 Wprowadzam PIN do Messengera...")
+            pin_input.clear()
+            pin_input.send_keys(pin)
+
+            # Zapisz snapshot po wprowadzeniu PINu (jeśli debugging włączony)
+            if self.config.should_save_screenshots():
+                self.debug_logger.save_debug_snapshot(
+                    self.driver,
+                    "pin_entered",
+                    f"PIN wprowadzony: {pin[:2]}****"
+                )
+
+            # Czekaj na zamknięcie okna dialogowego
+            time.sleep(3)
+
+            logger.info("✅ PIN wprowadzony pomyślnie")
+            return True
+
+        except Exception as e:
+            logger.error(f"❌ Błąd podczas obsługi okna dialogowego z PINem: {e}")
+            if self.config.should_screenshot_on_error():
+                self.debug_logger.save_error_snapshot(self.driver, e)
+            return False
+
     def navigate_to_messenger(self):
         """Przechodzi do Messenger poprzez bezpośrednią nawigację do URL."""
         try:
@@ -139,6 +183,9 @@ class FacebookBot:
             logger.info("🔄 Przechodzę do Messenger przez bezpośredni link...")
             self.driver.get("https://www.facebook.com/messages/")
             time.sleep(5)  # Czekaj na załadowanie
+
+            # Obsłuż okno dialogowe z PINem (jeśli się pojawi)
+            self.handle_pin_dialog()
 
             # Sprawdź czy udało się przejść do Messengera
             current_url = self.driver.current_url
