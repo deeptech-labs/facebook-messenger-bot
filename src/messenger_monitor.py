@@ -282,14 +282,15 @@ class MessengerMonitor:
     def save_conversations_to_file(self, conversations=None, output_dir='data'):
         """
         Zapisuje listę wszystkich widocznych czatów do plików w formacie JSON.
-        Każda konwersacja jest zapisywana w osobnym folderze.
+        - Zapisuje plik z pełną listą konwersacji w głównym folderze data/
+        - Zapisuje metadane każdej konwersacji w osobnym folderze
 
         Args:
             conversations: Lista konwersacji (jeśli None, pobierze automatycznie)
             output_dir: Katalog wyjściowy (domyślnie 'data')
 
         Returns:
-            list: Lista ścieżek do zapisanych plików lub None w przypadku błędu
+            dict: Słownik z informacjami o zapisanych plikach lub None w przypadku błędu
         """
         try:
             # Pobierz konwersacje jeśli nie zostały podane
@@ -306,11 +307,34 @@ class MessengerMonitor:
             # Wygeneruj timestamp dla tej sesji zapisywania
             timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
 
-            saved_files = []
+            # 1. ZAPISZ PEŁNĄ LISTĘ KONWERSACJI DO GŁÓWNEGO FOLDERU
+            list_filename = f"conversations_list_{timestamp}.json"
+            list_filepath = os.path.join(output_dir, list_filename)
+
+            conversations_list = []
+            for conv in conversations:
+                conversations_list.append({
+                    'name': conv.get('name'),
+                    'url': conv.get('url'),
+                })
+
+            list_data = {
+                'timestamp': datetime.now().isoformat(),
+                'total_count': len(conversations_list),
+                'conversations': conversations_list
+            }
+
+            with open(list_filepath, 'w', encoding='utf-8') as f:
+                json.dump(list_data, f, ensure_ascii=False, indent=2)
+
+            logger.info(f"✅ Zapisano listę {len(conversations_list)} konwersacji do: {list_filepath}")
+            print(f"✅ Zapisano listę {len(conversations_list)} konwersacji do: {list_filepath}")
+
+            # 2. ZAPISZ METADANE KAŻDEJ KONWERSACJI W OSOBNYM FOLDERZE
+            saved_files = [list_filepath]
             saved_count = 0
             skipped_count = 0
 
-            # Zapisz każdą konwersację w osobnym folderze
             for conv in conversations:
                 try:
                     # Pobierz nazwę konwersacji
@@ -353,13 +377,18 @@ class MessengerMonitor:
                     continue
 
             # Podsumowanie
-            logger.info(f"✅ Zapisano {saved_count} czatów w folderze: {output_dir}")
+            logger.info(f"✅ Zapisano metadane {saved_count} czatów do osobnych folderów")
             logger.info(f"   Pominiętych: {skipped_count}")
-            print(f"✅ Zapisano {saved_count} czatów w folderze: {output_dir}")
+            print(f"✅ Zapisano metadane {saved_count} czatów do osobnych folderów")
             if skipped_count > 0:
                 print(f"   Pominiętych: {skipped_count}")
 
-            return saved_files
+            return {
+                'list_file': list_filepath,
+                'conversation_files': saved_files,
+                'saved_count': saved_count,
+                'skipped_count': skipped_count
+            }
 
         except Exception as e:
             logger.error(f"❌ Błąd podczas zapisywania czatów do plików: {e}")
