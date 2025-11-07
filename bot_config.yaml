@@ -6,8 +6,8 @@
 # 1. TRYB: Ekstrakcja historyczna
 mode: "extract"
 
-# 2. ZAKRES: Tylko grupy
-scope: "groups"
+# 2. ZAKRES: Tylko wybrane konwersacje z listy
+scope: "specific"
 
 # 3. WYBRANE GRUPY
 specific_conversations:
