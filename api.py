@@ -37,7 +37,7 @@ async def lifespan(app: FastAPI):
     
     if bot_instance.navigate_to_messenger():
         print("Bot uruchomiony i gotowy do pracy")
-        monitor = MessengerMonitor(bot_instance.driver)
+        monitor = MessengerMonitor(bot_instance.driver, config=settings.config)
 
         # Pobierz i zapisz listę czatów
         print("\n📋 Pobieranie listy czatów...")
@@ -47,13 +47,34 @@ async def lifespan(app: FastAPI):
         print("\n💾 Zapisywanie metadanych konwersacji do folderu data...")
         monitor.save_conversations_to_file(conversations)
 
-        # Ekstraktuj wiadomości (można wyłączyć jeśli nie jest potrzebne przy starcie API)
-        # monitor.extract_and_save_all_conversations(conversations=conversations, output_dir='data')
+        # AUTOMATYCZNA EKSTRAKCJA W TRYBIE EXTRACT
+        config = settings.config
+        mode = config.get_mode()
 
-        # Uruchom monitoring w tle
-        monitor_task = asyncio.create_task(
-            asyncio.to_thread(monitor.run_monitoring_loop, settings.POLLING_INTERVAL)
-        )
+        # Sprawdź czy w trybie extract lub czy jakieś konwersacje mają akcję "extract_history" lub "save_messages"
+        should_auto_extract = mode == 'extract'
+
+        # Jeśli nie tryb extract, sprawdź actions w specific_conversations
+        if not should_auto_extract and config.get_scope() == 'specific':
+            specific_convs = config.get_specific_conversations()
+            for conv_config in specific_convs:
+                if conv_config.get('enabled', True):
+                    actions = conv_config.get('actions', [])
+                    if 'extract_history' in actions or 'save_messages' in actions:
+                        should_auto_extract = True
+                        break
+
+        # Ekstraktuj wiadomości automatycznie jeśli spełnione warunki
+        if should_auto_extract:
+            print(f"\n🚀 Tryb: {mode} - automatycznie ekstraktuję wiadomości...")
+            monitor.extract_and_save_all_conversations(conversations=conversations, output_dir='data')
+            print("\n✅ Ekstrakcja wiadomości zakończona!")
+
+        # Uruchom monitoring w tle (jeśli włączony w konfiguracji)
+        if config.is_monitoring_enabled():
+            monitor_task = asyncio.create_task(
+                asyncio.to_thread(monitor.run_monitoring_loop, settings.POLLING_INTERVAL)
+            )
     
     yield
     
