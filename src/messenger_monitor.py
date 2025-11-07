@@ -94,40 +94,58 @@ class MessengerMonitor:
 
                     if chat_elements:
                         logger.info(f"   Znaleziono {len(chat_elements)} elementów DOM dla selektora: {selector}")
+                        logger.info(f"   Rozpoczynam przetwarzanie elementów...")
 
+                        element_count = 0
                         for element in chat_elements:
+                            element_count += 1
                             try:
+                                # Log progress every 5 elements
+                                if element_count % 5 == 1 or element_count == len(chat_elements):
+                                    logger.info(f"   Przetwarzam element {element_count}/{len(chat_elements)}...")
+
                                 # Pobierz nazwę czatu
                                 chat_name = None
 
                                 # Próbuj różne metody pobrania nazwy
                                 try:
                                     # Szukaj elementu span z nazwą użytkownika
+                                    logger.debug(f"      Szukam span[dir='auto'] w elemencie {element_count}")
                                     name_element = element.find_element(By.CSS_SELECTOR, "span[dir='auto']")
                                     chat_name = name_element.text.strip()
-                                except:
+                                    logger.info(f"      Element {element_count}: Znaleziono nazwę '{chat_name}'")
+                                except Exception as e:
+                                    logger.debug(f"      Nie znaleziono span[dir='auto']: {e}")
                                     pass
 
                                 if not chat_name:
                                     try:
                                         # Próbuj pobrać z aria-label
+                                        logger.debug(f"      Próbuję pobrać aria-label")
                                         chat_name = element.get_attribute("aria-label")
-                                    except:
+                                        logger.debug(f"      aria-label: {chat_name}")
+                                    except Exception as e:
+                                        logger.debug(f"      Nie znaleziono aria-label: {e}")
                                         pass
 
                                 if not chat_name:
                                     # Użyj całego tekstu elementu jako fallback
+                                    logger.debug(f"      Próbuję pobrać tekst elementu")
                                     chat_name = element.text.strip()
+                                    logger.debug(f"      Tekst elementu: {chat_name}")
 
                                 # Pobierz URL czatu (jeśli istnieje)
                                 chat_url = None
                                 try:
+                                    logger.debug(f"      Szukam URL dla: {chat_name}")
                                     if element.tag_name == 'a':
                                         chat_url = element.get_attribute("href")
                                     else:
                                         link_element = element.find_element(By.TAG_NAME, "a")
                                         chat_url = link_element.get_attribute("href")
-                                except:
+                                    logger.debug(f"      Znaleziono URL: {chat_url}")
+                                except Exception as e:
+                                    logger.debug(f"      Nie znaleziono URL: {e}")
                                     pass
 
                                 # Dodaj do listy jeśli mamy nazwę
@@ -143,6 +161,7 @@ class MessengerMonitor:
                                             'url': chat_url,
                                             'element': element
                                         })
+                                        logger.debug(f"      ✅ Dodano konwersację: {chat_name}")
                                     elif not chat_url and not any(conv['name'] == chat_name for conv in conversations):
                                         # Fallback dla czatów bez URL - sprawdź po nazwie
                                         conversations.append({
@@ -150,10 +169,17 @@ class MessengerMonitor:
                                             'url': chat_url,
                                             'element': element
                                         })
+                                        logger.debug(f"      ✅ Dodano konwersację (bez URL): {chat_name}")
+                                    else:
+                                        logger.debug(f"      ⏭️ Pominięto duplikat: {chat_name}")
+                                else:
+                                    logger.debug(f"      ⏭️ Element bez nazwy, pomijam")
 
                             except Exception as e:
-                                logger.debug(f"Błąd podczas przetwarzania elementu czatu: {e}")
+                                logger.warning(f"   ⚠️ Błąd podczas przetwarzania elementu {element_count}: {e}")
                                 continue
+
+                        logger.info(f"   Zakończono przetwarzanie {element_count} elementów")
 
                         # Jeśli znaleźliśmy czaty, przerwij pętlę selektorów
                         if conversations:
