@@ -590,10 +590,17 @@ class MessengerMonitor:
 
             for idx, element in enumerate(message_elements):
                 try:
+                    # Log progress co 5 wiadomości
+                    if idx % 5 == 0 or idx == len(message_elements) - 1:
+                        logger.info(f"   Przetwarzam wiadomość {idx + 1}/{len(message_elements)}...")
+
                     # Pobierz tekst wiadomości
+                    logger.debug(f"   [{idx + 1}] Pobieram tekst wiadomości...")
                     message_text = element.text.strip()
+                    logger.debug(f"   [{idx + 1}] Tekst: {message_text[:50]}..." if len(message_text) > 50 else f"   [{idx + 1}] Tekst: {message_text}")
 
                     # Pobierz aria-label (często zawiera dodatkowe info)
+                    logger.debug(f"   [{idx + 1}] Pobieram aria-label...")
                     aria_label = element.get_attribute("aria-label")
 
                     # Podstawowe dane wiadomości
@@ -605,6 +612,7 @@ class MessengerMonitor:
 
                     # Pobierz timestamp jeśli włączone
                     if include_timestamps:
+                        logger.debug(f"   [{idx + 1}] Szukam timestamp...")
                         timestamp_element = None
                         try:
                             timestamp_element = element.find_element(By.CSS_SELECTOR, "span[aria-label*=':']")
@@ -613,9 +621,11 @@ class MessengerMonitor:
 
                         timestamp = timestamp_element.get_attribute("aria-label") if timestamp_element else None
                         message_data['timestamp'] = timestamp
+                        logger.debug(f"   [{idx + 1}] Timestamp: {timestamp}")
 
                     # Pobierz info o nadawcy jeśli włączone
                     if include_sender_info and aria_label:
+                        logger.debug(f"   [{idx + 1}] Ekstraktuję info o nadawcy...")
                         message_data['aria_label'] = aria_label
                         # Spróbuj wyekstraktować nadawcę z aria-label
                         # Format: "You sent 'text'" lub "Name said 'text'"
@@ -627,18 +637,23 @@ class MessengerMonitor:
                             message_data['sender'] = sender_match.strip()
                         else:
                             message_data['sender'] = 'Unknown'
+                        logger.debug(f"   [{idx + 1}] Sender: {message_data.get('sender')}")
 
                     # Pobierz media jeśli włączone
                     if include_media:
+                        logger.debug(f"   [{idx + 1}] Szukam mediów...")
                         media_links = self._extract_media_from_element(element, media_config)
                         if media_links:
                             message_data['media'] = media_links
+                            logger.debug(f"   [{idx + 1}] Znaleziono {len(media_links)} mediów")
 
                     # Pobierz reakcje jeśli włączone
                     if include_reactions:
+                        logger.debug(f"   [{idx + 1}] Szukam reakcji...")
                         reactions = self._extract_reactions_from_element(element)
                         if reactions:
                             message_data['reactions'] = reactions
+                            logger.debug(f"   [{idx + 1}] Znaleziono {len(reactions)} reakcji")
 
                     # Dodaj wiadomość jeśli ma treść lub media
                     if message_text or (include_media and message_data.get('media')):
