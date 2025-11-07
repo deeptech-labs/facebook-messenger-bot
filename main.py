@@ -87,32 +87,65 @@ if __name__ == "__main__":
             print("\n💾 Zapisywanie metadanych konwersacji do folderu data...")
             monitor.save_conversations_to_file(conversations)
 
-            # Pobierz i zapisz wiadomości ze wszystkich konwersacji
-            print("\n📥 Ekstraktuję wiadomości z konwersacji...")
-            extract_choice = input("Czy chcesz wyekstraktować wiadomości z konwersacji? (t/n): ").lower()
+            # AUTOMATYCZNA EKSTRAKCJA W TRYBIE EXTRACT
+            mode = config.get_mode()
 
-            if extract_choice == 't':
-                max_conv = input("Ile konwersacji przetwarzać? (Enter = wszystkie, liczba = limit): ").strip()
-                max_conversations = int(max_conv) if max_conv.isdigit() else None
+            # Sprawdź czy w trybie extract lub czy jakieś konwersacje mają akcję "extract_history" lub "save_messages"
+            should_auto_extract = mode == 'extract'
 
-                print(f"\n🚀 Rozpoczynam ekstrakcję wiadomości...")
+            # Jeśli nie tryb extract, sprawdź actions w specific_conversations
+            if not should_auto_extract and config.get_scope() == 'specific':
+                specific_convs = config.get_specific_conversations()
+                for conv_config in specific_convs:
+                    if conv_config.get('enabled', True):
+                        actions = conv_config.get('actions', [])
+                        if 'extract_history' in actions or 'save_messages' in actions:
+                            should_auto_extract = True
+                            break
+
+            if should_auto_extract:
+                # AUTOMATYCZNA EKSTRAKCJA
+                print(f"\n🚀 Tryb: {mode} - automatycznie ekstraktuję wiadomości...")
+                logger.info(f"Automatyczna ekstrakcja wiadomości (tryb: {mode})")
+
                 monitor.extract_and_save_all_conversations(
                     conversations=conversations,
                     output_dir='data',
-                    max_conversations=max_conversations
+                    max_conversations=None
                 )
 
                 print("\n✅ Ekstrakcja wiadomości zakończona!")
+            else:
+                # INTERAKTYWNE PYTANIE (tylko dla innych trybów)
+                print("\n📥 Ekstraktuję wiadomości z konwersacji...")
+                extract_choice = input("Czy chcesz wyekstraktować wiadomości z konwersacji? (t/n): ").lower()
+
+                if extract_choice == 't':
+                    max_conv = input("Ile konwersacji przetwarzać? (Enter = wszystkie, liczba = limit): ").strip()
+                    max_conversations = int(max_conv) if max_conv.isdigit() else None
+
+                    print(f"\n🚀 Rozpoczynam ekstrakcję wiadomości...")
+                    monitor.extract_and_save_all_conversations(
+                        conversations=conversations,
+                        output_dir='data',
+                        max_conversations=max_conversations
+                    )
+
+                    print("\n✅ Ekstrakcja wiadomości zakończona!")
 
             # Uruchomienie pętli monitorującej (interwał z konfiguracji)
-            monitor_choice = input("\nCzy chcesz uruchomić monitoring? (t/n): ").lower()
+            # Tylko jeśli monitoring jest włączony w konfiguracji
+            if config.is_monitoring_enabled():
+                monitor_choice = input("\nCzy chcesz uruchomić monitoring? (t/n): ").lower()
 
-            if monitor_choice == 't':
-                print(f"\n🔄 Rozpoczynam monitorowanie (interwał: {config.get_polling_interval()}s)...")
-                print("   Naciśnij Ctrl+C aby zatrzymać.\n")
-                monitor.run_monitoring_loop()
+                if monitor_choice == 't':
+                    print(f"\n🔄 Rozpoczynam monitorowanie (interwał: {config.get_polling_interval()}s)...")
+                    print("   Naciśnij Ctrl+C aby zatrzymać.\n")
+                    monitor.run_monitoring_loop()
+                else:
+                    print("\n✅ Zakończono bez uruchamiania monitoringu.")
             else:
-                print("\n✅ Zakończono bez uruchamiania monitoringu.")
+                print("\n✅ Monitoring wyłączony w konfiguracji. Zakończono.")
         else:
             logger.error("❌ Nie udało się przejść do Messengera")
             print("❌ Nie udało się przejść do Messengera.")
