@@ -17,8 +17,15 @@ DEBUG_DIR = os.path.join(BASE_DIR, "debug_res")
 os.makedirs(LOG_DIR, exist_ok=True)
 os.makedirs(DEBUG_DIR, exist_ok=True)
 
-# Załaduj konfigurację z bot_config.md
-CONFIG_FILE = os.path.join(BASE_DIR, "bot_config.md")
+# Załaduj konfigurację - użyj zmiennej środowiskowej BOT_CONFIG_FILE jeśli jest ustawiona
+# Domyślnie: bot_config.yaml, fallback do bot_config.md
+CONFIG_FILE_NAME = os.getenv("BOT_CONFIG_FILE", "bot_config.yaml")
+CONFIG_FILE = os.path.join(BASE_DIR, CONFIG_FILE_NAME)
+
+# Jeśli wybrany plik nie istnieje, spróbuj bot_config.md
+if not os.path.exists(CONFIG_FILE):
+    CONFIG_FILE = os.path.join(BASE_DIR, "bot_config.md")
+
 config_parser = ConfigParser(CONFIG_FILE)
 
 # Ścieżka do WebDriver (nie jest już potrzebna z webdriver-manager, ale zostawiamy dla kompatybilności)

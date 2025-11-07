@@ -68,6 +68,7 @@ class MessengerMonitor:
     def get_all_conversations(self):
         """
         Pobiera listę widocznych konwersacji z Messengera (bez scrollowania).
+        Filtruje konwersacje zgodnie z konfiguracją (scope i specific_conversations).
         """
         try:
             conversations = []
@@ -163,14 +164,74 @@ class MessengerMonitor:
                     logger.warning(f"   ⚠️ Błąd dla selektora '{selector}': {e}")
                     continue
 
-            logger.info(f"✅ Znaleziono {len(conversations)} czatów")
-            return conversations
+            # Filtruj według konfiguracji
+            filtered_conversations = self._filter_conversations_by_config(conversations)
+
+            logger.info(f"✅ Znaleziono {len(filtered_conversations)} czatów (po filtrowaniu)")
+            return filtered_conversations
 
         except Exception as e:
             logger.error(f"Błąd podczas pobierania listy konwersacji: {e}")
             if self.config.should_screenshot_on_error():
                 self.debug_logger.save_error_snapshot(self.driver, e)
             return []
+
+    def _filter_conversations_by_config(self, conversations):
+        """
+        Filtruje konwersacje zgodnie z konfiguracją (scope i specific_conversations).
+
+        Args:
+            conversations: Lista wszystkich znalezionych konwersacji
+
+        Returns:
+            Lista przefiltrowanych konwersacji
+        """
+        scope = self.config.get_scope()
+
+        # Jeśli scope = "all", zwróć wszystkie
+        if scope == 'all':
+            logger.info(f"   Scope: all - zwracam wszystkie {len(conversations)} konwersacji")
+            return conversations
+
+        # Jeśli scope = "specific", filtruj według specific_conversations
+        if scope == 'specific':
+            specific_convs = self.config.get_specific_conversations()
+
+            if not specific_convs:
+                logger.warning("   Scope: specific, ale brak specific_conversations w konfiguracji")
+                return conversations
+
+            # Pobierz nazwy włączonych konwersacji z konfiguracji
+            enabled_names = []
+            for conv_config in specific_convs:
+                if conv_config.get('enabled', True):  # domyślnie enabled=True
+                    enabled_names.append(conv_config.get('name', '').strip())
+
+            logger.info(f"   Scope: specific - filtruję według {len(enabled_names)} nazw z konfiguracji")
+            logger.info(f"   Szukane konwersacje: {enabled_names}")
+
+            # Filtruj konwersacje które pasują do nazw z konfiguracji
+            filtered = []
+            for conv in conversations:
+                conv_name = conv.get('name', '').strip()
+                # Dopasowanie: sprawdź czy nazwa z konfiguracji zawiera się w nazwie czatu
+                # lub odwrotnie (dla elastyczności)
+                for enabled_name in enabled_names:
+                    if enabled_name.lower() in conv_name.lower() or conv_name.lower() in enabled_name.lower():
+                        filtered.append(conv)
+                        logger.info(f"   ✅ Dopasowano: '{conv_name}' do config: '{enabled_name}'")
+                        break
+
+            if not filtered:
+                logger.warning(f"   ⚠️ Nie znaleziono żadnych konwersacji pasujących do konfiguracji")
+                logger.info(f"   Dostępne konwersacje: {[c['name'] for c in conversations[:10]]}")
+
+            return filtered
+
+        # Jeśli scope = "groups" lub inne, na razie zwróć wszystkie
+        # (można później dodać rozróżnienie groups vs individual)
+        logger.info(f"   Scope: {scope} - zwracam wszystkie {len(conversations)} konwersacji")
+        return conversations
 
     def list_all_conversations(self):
         """Wyświetla w logach listę wszystkich dostępnych czatów."""
