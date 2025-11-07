@@ -39,25 +39,40 @@ class ConfigParser:
             with open(self.config_file, 'r', encoding='utf-8') as f:
                 content = f.read()
 
-            # Ekstrahuj wszystkie bloki YAML z markdown
-            yaml_blocks = self._extract_yaml_blocks(content)
-
-            # Parsuj każdy blok YAML i scal w jeden słownik
-            for yaml_block in yaml_blocks:
+            # Sprawdź czy plik to czysty YAML (po rozszerzeniu)
+            if self.config_file.endswith('.yaml') or self.config_file.endswith('.yml'):
+                # Parsuj bezpośrednio jako YAML
                 try:
-                    parsed = yaml.safe_load(yaml_block)
+                    parsed = yaml.safe_load(content)
                     if parsed and isinstance(parsed, dict):
-                        self._merge_config(self.config, parsed)
+                        self.config = parsed
+                        logger.info(f"Załadowano konfigurację YAML z {self.config_file}")
+                    else:
+                        logger.warning("Plik YAML jest pusty lub niepoprawny. Używam domyślnych ustawień.")
+                        self._load_defaults()
                 except yaml.YAMLError as e:
-                    logger.warning(f"Błąd parsowania bloku YAML: {e}")
-                    continue
+                    logger.error(f"Błąd parsowania pliku YAML: {e}")
+                    self._load_defaults()
+            else:
+                # Ekstrahuj bloki YAML z markdown
+                yaml_blocks = self._extract_yaml_blocks(content)
 
-            logger.info(f"Załadowano konfigurację z {self.config_file}")
+                # Parsuj każdy blok YAML i scal w jeden słownik
+                for yaml_block in yaml_blocks:
+                    try:
+                        parsed = yaml.safe_load(yaml_block)
+                        if parsed and isinstance(parsed, dict):
+                            self._merge_config(self.config, parsed)
+                    except yaml.YAMLError as e:
+                        logger.warning(f"Błąd parsowania bloku YAML: {e}")
+                        continue
 
-            # Jeśli nie udało się załadować żadnej konfiguracji, użyj domyślnej
-            if not self.config:
-                logger.warning("Nie znaleziono poprawnych bloków YAML. Używam domyślnych ustawień.")
-                self._load_defaults()
+                logger.info(f"Załadowano konfigurację z {self.config_file}")
+
+                # Jeśli nie udało się załadować żadnej konfiguracji, użyj domyślnej
+                if not self.config:
+                    logger.warning("Nie znaleziono poprawnych bloków YAML. Używam domyślnych ustawień.")
+                    self._load_defaults()
 
         except Exception as e:
             logger.error(f"Błąd wczytywania konfiguracji: {e}")

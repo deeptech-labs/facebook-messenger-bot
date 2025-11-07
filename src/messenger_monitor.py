@@ -68,6 +68,7 @@ class MessengerMonitor:
     def get_all_conversations(self):
         """
         Pobiera listę widocznych konwersacji z Messengera (bez scrollowania).
+        Filtruje konwersacje zgodnie z konfiguracją (scope i specific_conversations).
         """
         try:
             conversations = []
@@ -163,14 +164,74 @@ class MessengerMonitor:
                     logger.warning(f"   ⚠️ Błąd dla selektora '{selector}': {e}")
                     continue
 
-            logger.info(f"✅ Znaleziono {len(conversations)} czatów")
-            return conversations
+            # Filtruj według konfiguracji
+            filtered_conversations = self._filter_conversations_by_config(conversations)
+
+            logger.info(f"✅ Znaleziono {len(filtered_conversations)} czatów (po filtrowaniu)")
+            return filtered_conversations
 
         except Exception as e:
             logger.error(f"Błąd podczas pobierania listy konwersacji: {e}")
             if self.config.should_screenshot_on_error():
                 self.debug_logger.save_error_snapshot(self.driver, e)
             return []
+
+    def _filter_conversations_by_config(self, conversations):
+        """
+        Filtruje konwersacje zgodnie z konfiguracją (scope i specific_conversations).
+
+        Args:
+            conversations: Lista wszystkich znalezionych konwersacji
+
+        Returns:
+            Lista przefiltrowanych konwersacji
+        """
+        scope = self.config.get_scope()
+
+        # Jeśli scope = "all", zwróć wszystkie
+        if scope == 'all':
+            logger.info(f"   Scope: all - zwracam wszystkie {len(conversations)} konwersacji")
+            return conversations
+
+        # Jeśli scope = "specific", filtruj według specific_conversations
+        if scope == 'specific':
+            specific_convs = self.config.get_specific_conversations()
+
+            if not specific_convs:
+                logger.warning("   Scope: specific, ale brak specific_conversations w konfiguracji")
+                return conversations
+
+            # Pobierz nazwy włączonych konwersacji z konfiguracji
+            enabled_names = []
+            for conv_config in specific_convs:
+                if conv_config.get('enabled', True):  # domyślnie enabled=True
+                    enabled_names.append(conv_config.get('name', '').strip())
+
+            logger.info(f"   Scope: specific - filtruję według {len(enabled_names)} nazw z konfiguracji")
+            logger.info(f"   Szukane konwersacje: {enabled_names}")
+
+            # Filtruj konwersacje które pasują do nazw z konfiguracji
+            filtered = []
+            for conv in conversations:
+                conv_name = conv.get('name', '').strip()
+                # Dopasowanie: sprawdź czy nazwa z konfiguracji zawiera się w nazwie czatu
+                # lub odwrotnie (dla elastyczności)
+                for enabled_name in enabled_names:
+                    if enabled_name.lower() in conv_name.lower() or conv_name.lower() in enabled_name.lower():
+                        filtered.append(conv)
+                        logger.info(f"   ✅ Dopasowano: '{conv_name}' do config: '{enabled_name}'")
+                        break
+
+            if not filtered:
+                logger.warning(f"   ⚠️ Nie znaleziono żadnych konwersacji pasujących do konfiguracji")
+                logger.info(f"   Dostępne konwersacje: {[c['name'] for c in conversations[:10]]}")
+
+            return filtered
+
+        # Jeśli scope = "groups" lub inne, na razie zwróć wszystkie
+        # (można później dodać rozróżnienie groups vs individual)
+        logger.info(f"   Scope: {scope} - zwracam wszystkie {len(conversations)} konwersacji")
+        return conversations
 
     def list_all_conversations(self):
         """Wyświetla w logach listę wszystkich dostępnych czatów."""
@@ -424,12 +485,26 @@ class MessengerMonitor:
     def extract_messages_from_conversation(self):
         """
         Ekstraktuje wiadomości z aktualnie otwartej konwersacji.
+        Pobiera dane zgodnie z konfiguracją data_to_collect.
 
         Returns:
             list: Lista wiadomości (dictionaries z danymi wiadomości)
         """
         try:
             logger.info("📥 Ekstraktuję wiadomości z konwersacji...")
+
+            # Sprawdź co powinno być pobierane z konfiguracji
+            data_config = self.config.get('data_to_collect', {})
+            messages_config = data_config.get('messages', {})
+            media_config = data_config.get('media', {})
+            metadata_config = data_config.get('metadata', {})
+
+            include_reactions = messages_config.get('include_reactions', True)
+            include_timestamps = messages_config.get('include_timestamps', True)
+            include_sender_info = messages_config.get('include_sender_info', True)
+            include_media = media_config.get('enabled', True)
+
+            logger.info(f"   Konfiguracja: reactions={include_reactions}, timestamps={include_timestamps}, sender={include_sender_info}, media={include_media}")
 
             messages = []
 
@@ -466,24 +541,52 @@ class MessengerMonitor:
                     # Pobierz aria-label (często zawiera dodatkowe info)
                     aria_label = element.get_attribute("aria-label")
 
-                    # Pobierz timestamp jeśli dostępny
-                    timestamp_element = None
-                    try:
-                        timestamp_element = element.find_element(By.CSS_SELECTOR, "span[aria-label*=':']")
-                    except:
-                        pass
+                    # Podstawowe dane wiadomości
+                    message_data = {
+                        'index': idx,
+                        'text': message_text,
+                        'extracted_at': datetime.now().isoformat()
+                    }
 
-                    timestamp = timestamp_element.get_attribute("aria-label") if timestamp_element else None
+                    # Pobierz timestamp jeśli włączone
+                    if include_timestamps:
+                        timestamp_element = None
+                        try:
+                            timestamp_element = element.find_element(By.CSS_SELECTOR, "span[aria-label*=':']")
+                        except:
+                            pass
 
-                    # Dodaj wiadomość jeśli ma treść
-                    if message_text and len(message_text) > 0:
-                        message_data = {
-                            'index': idx,
-                            'text': message_text,
-                            'aria_label': aria_label,
-                            'timestamp': timestamp,
-                            'extracted_at': datetime.now().isoformat()
-                        }
+                        timestamp = timestamp_element.get_attribute("aria-label") if timestamp_element else None
+                        message_data['timestamp'] = timestamp
+
+                    # Pobierz info o nadawcy jeśli włączone
+                    if include_sender_info and aria_label:
+                        message_data['aria_label'] = aria_label
+                        # Spróbuj wyekstraktować nadawcę z aria-label
+                        # Format: "You sent 'text'" lub "Name said 'text'"
+                        if 'You sent' in aria_label or 'You said' in aria_label:
+                            message_data['sender'] = 'You'
+                        elif ' said ' in aria_label or ' sent ' in aria_label:
+                            # Spróbuj wyodrębnić nazwę
+                            sender_match = aria_label.split(' said ')[0] if ' said ' in aria_label else aria_label.split(' sent ')[0]
+                            message_data['sender'] = sender_match.strip()
+                        else:
+                            message_data['sender'] = 'Unknown'
+
+                    # Pobierz media jeśli włączone
+                    if include_media:
+                        media_links = self._extract_media_from_element(element, media_config)
+                        if media_links:
+                            message_data['media'] = media_links
+
+                    # Pobierz reakcje jeśli włączone
+                    if include_reactions:
+                        reactions = self._extract_reactions_from_element(element)
+                        if reactions:
+                            message_data['reactions'] = reactions
+
+                    # Dodaj wiadomość jeśli ma treść lub media
+                    if message_text or (include_media and message_data.get('media')):
                         messages.append(message_data)
 
                 except Exception as e:
@@ -498,6 +601,129 @@ class MessengerMonitor:
             if self.config.should_screenshot_on_error():
                 self.debug_logger.save_error_snapshot(self.driver, e)
             return []
+
+    def _extract_media_from_element(self, element, media_config):
+        """
+        Ekstraktuje linki do mediów z elementu wiadomości.
+
+        Args:
+            element: Element Selenium zawierający wiadomość
+            media_config: Konfiguracja media z data_to_collect
+
+        Returns:
+            list: Lista dictionaries z informacjami o mediach
+        """
+        try:
+            media_items = []
+            media_types = media_config.get('types', ['images', 'videos', 'audio', 'documents'])
+
+            # Szukaj obrazków
+            if 'images' in media_types:
+                try:
+                    images = element.find_elements(By.CSS_SELECTOR, "img")
+                    for img in images:
+                        src = img.get_attribute("src")
+                        if src and not src.startswith('data:'):  # Pomiń data URLs
+                            media_items.append({
+                                'type': 'image',
+                                'url': src,
+                                'alt': img.get_attribute("alt") or ''
+                            })
+                except:
+                    pass
+
+            # Szukaj video
+            if 'videos' in media_types:
+                try:
+                    videos = element.find_elements(By.CSS_SELECTOR, "video")
+                    for video in videos:
+                        src = video.get_attribute("src")
+                        if src:
+                            media_items.append({
+                                'type': 'video',
+                                'url': src
+                            })
+                except:
+                    pass
+
+            # Szukaj audio
+            if 'audio' in media_types:
+                try:
+                    audios = element.find_elements(By.CSS_SELECTOR, "audio")
+                    for audio in audios:
+                        src = audio.get_attribute("src")
+                        if src:
+                            media_items.append({
+                                'type': 'audio',
+                                'url': src
+                            })
+                except:
+                    pass
+
+            # Szukaj linków do dokumentów
+            if 'documents' in media_types:
+                try:
+                    links = element.find_elements(By.CSS_SELECTOR, "a[href]")
+                    for link in links:
+                        href = link.get_attribute("href")
+                        text = link.text.strip()
+                        # Sprawdź czy to link do dokumentu (zawiera rozszerzenie pliku)
+                        if href and any(ext in href.lower() for ext in ['.pdf', '.doc', '.docx', '.xls', '.xlsx', '.zip', '.rar']):
+                            media_items.append({
+                                'type': 'document',
+                                'url': href,
+                                'filename': text or href.split('/')[-1]
+                            })
+                except:
+                    pass
+
+            return media_items if media_items else None
+
+        except Exception as e:
+            logger.debug(f"Błąd podczas ekstraktowania mediów: {e}")
+            return None
+
+    def _extract_reactions_from_element(self, element):
+        """
+        Ekstraktuje reakcje z elementu wiadomości.
+
+        Args:
+            element: Element Selenium zawierający wiadomość
+
+        Returns:
+            list: Lista reakcji (emoji) lub None
+        """
+        try:
+            reactions = []
+
+            # Szukaj reakcji - różne selektory dla różnych wersji Messengera
+            reaction_selectors = [
+                "div[aria-label*='reaction']",
+                "span[aria-label*='reaction']",
+                "img[alt*='reaction']",
+                "[data-reaction]"
+            ]
+
+            for selector in reaction_selectors:
+                try:
+                    reaction_elements = element.find_elements(By.CSS_SELECTOR, selector)
+                    for react_elem in reaction_elements:
+                        # Spróbuj pobrać emoji lub opis reakcji
+                        aria_label = react_elem.get_attribute("aria-label")
+                        alt_text = react_elem.get_attribute("alt")
+                        data_reaction = react_elem.get_attribute("data-reaction")
+
+                        reaction_text = aria_label or alt_text or data_reaction or react_elem.text.strip()
+                        if reaction_text:
+                            reactions.append(reaction_text)
+                except:
+                    continue
+
+            return reactions if reactions else None
+
+        except Exception as e:
+            logger.debug(f"Błąd podczas ekstraktowania reakcji: {e}")
+            return None
 
     def save_messages_to_folder(self, messages, conversation_name, output_dir='data'):
         """
@@ -554,6 +780,9 @@ class MessengerMonitor:
     def extract_and_save_all_conversations(self, conversations=None, output_dir='data', max_conversations=None):
         """
         Ekstraktuje i zapisuje wiadomości ze wszystkich konwersacji.
+        Zachowanie zależy od trybu w konfiguracji:
+        - 'extract': Scrolluje aby pobrać całą historię
+        - 'interactive': Pobiera tylko widoczne wiadomości (bez scrollowania)
 
         Args:
             conversations: Lista konwersacji (jeśli None, pobierze automatycznie)
@@ -576,8 +805,14 @@ class MessengerMonitor:
             if max_conversations:
                 conversations = conversations[:max_conversations]
 
+            # Sprawdź tryb działania
+            mode = self.config.get_mode()
+            should_scroll = mode == 'extract'  # Scrolluj tylko w trybie extract
+
             logger.info(f"🚀 Rozpoczynam ekstrakcję wiadomości z {len(conversations)} konwersacji...")
+            logger.info(f"   Tryb: {mode} (scrollowanie: {'TAK' if should_scroll else 'NIE'})")
             print(f"\n🚀 Rozpoczynam ekstrakcję wiadomości z {len(conversations)} konwersacji...")
+            print(f"   Tryb: {mode} (scrollowanie: {'TAK' if should_scroll else 'NIE'})")
 
             stats = {
                 'total': len(conversations),
@@ -605,8 +840,12 @@ class MessengerMonitor:
                         stats['failed'] += 1
                         continue
 
-                    # Scrolluj aby załadować wiadomości
-                    self.scroll_and_load_messages()
+                    # Scrolluj aby załadować wiadomości TYLKO w trybie extract
+                    if should_scroll:
+                        logger.info(f"   📜 Scrolluję aby pobrać całą historię (tryb: extract)")
+                        self.scroll_and_load_messages()
+                    else:
+                        logger.info(f"   ⏭️  Pomijam scrollowanie (tryb: {mode})")
 
                     # Ekstraktuj wiadomości
                     messages = self.extract_messages_from_conversation()
@@ -633,6 +872,7 @@ class MessengerMonitor:
             logger.info(f"\n{'='*70}")
             logger.info(f"📊 PODSUMOWANIE EKSTRAKCJI")
             logger.info(f"{'='*70}")
+            logger.info(f"Tryb:                         {mode}")
             logger.info(f"Całkowita liczba konwersacji: {stats['total']}")
             logger.info(f"Pomyślnie przetworzonych:     {stats['success']}")
             logger.info(f"Nieudanych:                   {stats['failed']}")
@@ -642,6 +882,7 @@ class MessengerMonitor:
             print(f"\n{'='*70}")
             print(f"📊 PODSUMOWANIE EKSTRAKCJI")
             print(f"{'='*70}")
+            print(f"Tryb:                         {mode}")
             print(f"Całkowita liczba konwersacji: {stats['total']}")
             print(f"Pomyślnie przetworzonych:     {stats['success']}")
             print(f"Nieudanych:                   {stats['failed']}")
