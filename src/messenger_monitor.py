@@ -100,91 +100,93 @@ class MessengerMonitor:
                         for element in chat_elements:
                             element_count += 1
                             try:
-                                # Log progress for every element
-                                logger.info(f"   ━━━ Element {element_count}/{len(chat_elements)} ━━━")
+                                # Log progress for every element (tylko co 5-ty dla czytelności)
+                                if element_count % 5 == 1 or element_count == len(chat_elements):
+                                    logger.info(f"   📊 Przetwarzanie elementu {element_count}/{len(chat_elements)}...")
+
+                                logger.debug(f"   ━━━ Element {element_count}/{len(chat_elements)} ━━━")
+
+                                # OPTYMALIZACJA: Najpierw sprawdź czy element ma URL czatu
+                                # To pozwoli szybko pominąć puste elementy/separatory
+                                chat_url = None
+                                try:
+                                    logger.debug(f"      🔗 Szukam URL...")
+                                    if element.tag_name == 'a':
+                                        chat_url = element.get_attribute("href")
+                                    else:
+                                        # Użyj find_elements (zwraca pustą listę natychmiast, bez timeoutu)
+                                        link_elements = element.find_elements(By.TAG_NAME, "a")
+                                        if link_elements:
+                                            chat_url = link_elements[0].get_attribute("href")
+
+                                    # Sprawdź czy to prawdziwy URL czatu
+                                    if chat_url and ('/t/' in chat_url or '/e2ee/' in chat_url):
+                                        url_display = chat_url if len(chat_url) <= 60 else chat_url[:57] + "..."
+                                        logger.debug(f"      ✅ URL: {url_display}")
+                                    else:
+                                        # Nie ma poprawnego URL czatu - pomiń ten element
+                                        logger.debug(f"      ⏭️ POMINIĘTO: brak URL czatu (prawdopodobnie separator/pusty element)")
+                                        continue
+                                except Exception as e:
+                                    logger.debug(f"      ⚠️ Nie znaleziono URL: {e}")
+                                    # Brak URL - pomiń ten element
+                                    continue
 
                                 # Pobierz nazwę czatu
                                 chat_name = None
 
                                 # Próbuj różne metody pobrania nazwy
+                                # Użyj find_elements zamiast find_element (bez timeoutu!)
                                 try:
-                                    # Szukaj elementu span z nazwą użytkownika
-                                    logger.info(f"      🔍 Szukam nazwy czatu (span[dir='auto'])...")
-                                    name_element = element.find_element(By.CSS_SELECTOR, "span[dir='auto']")
-                                    chat_name = name_element.text.strip()
-                                    logger.info(f"      ✅ Znaleziono nazwę: '{chat_name}'")
+                                    logger.debug(f"      🔍 Szukam nazwy czatu (span[dir='auto'])...")
+                                    name_elements = element.find_elements(By.CSS_SELECTOR, "span[dir='auto']")
+                                    if name_elements:
+                                        chat_name = name_elements[0].text.strip()
+                                        logger.debug(f"      ✅ Znaleziono nazwę: '{chat_name}'")
                                 except Exception as e:
-                                    logger.info(f"      ⚠️ Brak span[dir='auto'], próbuję inne metody...")
+                                    logger.debug(f"      ⚠️ Błąd przy span[dir='auto']: {e}")
                                     pass
 
                                 if not chat_name:
                                     try:
                                         # Próbuj pobrać z aria-label
-                                        logger.info(f"      🔍 Próbuję pobrać aria-label...")
+                                        logger.debug(f"      🔍 Próbuję pobrać aria-label...")
                                         chat_name = element.get_attribute("aria-label")
                                         if chat_name:
-                                            logger.info(f"      ✅ Znaleziono aria-label: '{chat_name}'")
+                                            logger.debug(f"      ✅ Znaleziono aria-label: '{chat_name}'")
                                         else:
-                                            logger.info(f"      ⚠️ aria-label jest pusty")
+                                            logger.debug(f"      ⚠️ aria-label jest pusty")
                                     except Exception as e:
-                                        logger.info(f"      ⚠️ Nie znaleziono aria-label")
+                                        logger.debug(f"      ⚠️ Nie znaleziono aria-label")
                                         pass
 
                                 if not chat_name:
                                     # Użyj całego tekstu elementu jako fallback
-                                    logger.info(f"      🔍 Próbuję pobrać tekst elementu...")
+                                    logger.debug(f"      🔍 Próbuję pobrać tekst elementu...")
                                     chat_name = element.text.strip()
                                     if chat_name:
-                                        logger.info(f"      ✅ Znaleziono tekst: '{chat_name[:50]}{'...' if len(chat_name) > 50 else ''}'")
+                                        logger.debug(f"      ✅ Znaleziono tekst: '{chat_name[:50]}{'...' if len(chat_name) > 50 else ''}'")
                                     else:
-                                        logger.info(f"      ⚠️ Element bez tekstu")
+                                        logger.debug(f"      ⚠️ Element bez tekstu")
 
-                                # Pobierz URL czatu (jeśli istnieje)
-                                chat_url = None
-                                try:
-                                    logger.info(f"      🔗 Szukam URL...")
-                                    if element.tag_name == 'a':
-                                        chat_url = element.get_attribute("href")
-                                    else:
-                                        link_element = element.find_element(By.TAG_NAME, "a")
-                                        chat_url = link_element.get_attribute("href")
-
-                                    if chat_url:
-                                        # Skróć URL dla lepszej czytelności
-                                        url_display = chat_url if len(chat_url) <= 60 else chat_url[:57] + "..."
-                                        logger.info(f"      ✅ URL: {url_display}")
-                                    else:
-                                        logger.info(f"      ⚠️ URL jest pusty")
-                                except Exception as e:
-                                    logger.info(f"      ⚠️ Nie znaleziono URL")
-                                    pass
-
-                                # Dodaj do listy jeśli mamy nazwę
-                                if chat_name and len(chat_name) > 0:
+                                # Dodaj do listy jeśli mamy nazwę i URL
+                                if chat_name and len(chat_name) > 0 and chat_url:
                                     # Usuń zbędne białe znaki
                                     chat_name = ' '.join(chat_name.split())
 
                                     # Użyj URL jako klucza unikalności
-                                    if chat_url and chat_url not in seen_urls:
+                                    if chat_url not in seen_urls:
                                         seen_urls.add(chat_url)
                                         conversations.append({
                                             'name': chat_name,
                                             'url': chat_url,
                                             'element': element
                                         })
-                                        logger.info(f"      ✅ DODANO czat: '{chat_name}' (URL: {'TAK' if chat_url else 'NIE'})")
-                                    elif not chat_url and not any(conv['name'] == chat_name for conv in conversations):
-                                        # Fallback dla czatów bez URL - sprawdź po nazwie
-                                        conversations.append({
-                                            'name': chat_name,
-                                            'url': chat_url,
-                                            'element': element
-                                        })
-                                        logger.info(f"      ✅ DODANO czat (bez URL): '{chat_name}'")
+                                        logger.info(f"      ✅ DODANO: '{chat_name}'")
                                     else:
-                                        logger.info(f"      ⏭️ POMINIĘTO duplikat: '{chat_name}' (URL już istnieje)")
+                                        logger.debug(f"      ⏭️ POMINIĘTO duplikat: '{chat_name}'")
                                 else:
-                                    logger.info(f"      ⏭️ POMINIĘTO: element bez nazwy")
+                                    logger.debug(f"      ⏭️ POMINIĘTO: brak nazwy lub URL")
 
                             except Exception as e:
                                 logger.warning(f"   ⚠️ Błąd podczas przetwarzania elementu {element_count}: {e}")
