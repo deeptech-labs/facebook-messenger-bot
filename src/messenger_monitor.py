@@ -100,9 +100,8 @@ class MessengerMonitor:
                         for element in chat_elements:
                             element_count += 1
                             try:
-                                # Log progress every 5 elements
-                                if element_count % 5 == 1 or element_count == len(chat_elements):
-                                    logger.info(f"   Przetwarzam element {element_count}/{len(chat_elements)}...")
+                                # Log progress for every element
+                                logger.info(f"   ━━━ Element {element_count}/{len(chat_elements)} ━━━")
 
                                 # Pobierz nazwę czatu
                                 chat_name = None
@@ -110,42 +109,54 @@ class MessengerMonitor:
                                 # Próbuj różne metody pobrania nazwy
                                 try:
                                     # Szukaj elementu span z nazwą użytkownika
-                                    logger.debug(f"      Szukam span[dir='auto'] w elemencie {element_count}")
+                                    logger.info(f"      🔍 Szukam nazwy czatu (span[dir='auto'])...")
                                     name_element = element.find_element(By.CSS_SELECTOR, "span[dir='auto']")
                                     chat_name = name_element.text.strip()
-                                    logger.info(f"      Element {element_count}: Znaleziono nazwę '{chat_name}'")
+                                    logger.info(f"      ✅ Znaleziono nazwę: '{chat_name}'")
                                 except Exception as e:
-                                    logger.debug(f"      Nie znaleziono span[dir='auto']: {e}")
+                                    logger.info(f"      ⚠️ Brak span[dir='auto'], próbuję inne metody...")
                                     pass
 
                                 if not chat_name:
                                     try:
                                         # Próbuj pobrać z aria-label
-                                        logger.debug(f"      Próbuję pobrać aria-label")
+                                        logger.info(f"      🔍 Próbuję pobrać aria-label...")
                                         chat_name = element.get_attribute("aria-label")
-                                        logger.debug(f"      aria-label: {chat_name}")
+                                        if chat_name:
+                                            logger.info(f"      ✅ Znaleziono aria-label: '{chat_name}'")
+                                        else:
+                                            logger.info(f"      ⚠️ aria-label jest pusty")
                                     except Exception as e:
-                                        logger.debug(f"      Nie znaleziono aria-label: {e}")
+                                        logger.info(f"      ⚠️ Nie znaleziono aria-label")
                                         pass
 
                                 if not chat_name:
                                     # Użyj całego tekstu elementu jako fallback
-                                    logger.debug(f"      Próbuję pobrać tekst elementu")
+                                    logger.info(f"      🔍 Próbuję pobrać tekst elementu...")
                                     chat_name = element.text.strip()
-                                    logger.debug(f"      Tekst elementu: {chat_name}")
+                                    if chat_name:
+                                        logger.info(f"      ✅ Znaleziono tekst: '{chat_name[:50]}{'...' if len(chat_name) > 50 else ''}'")
+                                    else:
+                                        logger.info(f"      ⚠️ Element bez tekstu")
 
                                 # Pobierz URL czatu (jeśli istnieje)
                                 chat_url = None
                                 try:
-                                    logger.debug(f"      Szukam URL dla: {chat_name}")
+                                    logger.info(f"      🔗 Szukam URL...")
                                     if element.tag_name == 'a':
                                         chat_url = element.get_attribute("href")
                                     else:
                                         link_element = element.find_element(By.TAG_NAME, "a")
                                         chat_url = link_element.get_attribute("href")
-                                    logger.debug(f"      Znaleziono URL: {chat_url}")
+
+                                    if chat_url:
+                                        # Skróć URL dla lepszej czytelności
+                                        url_display = chat_url if len(chat_url) <= 60 else chat_url[:57] + "..."
+                                        logger.info(f"      ✅ URL: {url_display}")
+                                    else:
+                                        logger.info(f"      ⚠️ URL jest pusty")
                                 except Exception as e:
-                                    logger.debug(f"      Nie znaleziono URL: {e}")
+                                    logger.info(f"      ⚠️ Nie znaleziono URL")
                                     pass
 
                                 # Dodaj do listy jeśli mamy nazwę
@@ -161,7 +172,7 @@ class MessengerMonitor:
                                             'url': chat_url,
                                             'element': element
                                         })
-                                        logger.debug(f"      ✅ Dodano konwersację: {chat_name}")
+                                        logger.info(f"      ✅ DODANO czat: '{chat_name}' (URL: {'TAK' if chat_url else 'NIE'})")
                                     elif not chat_url and not any(conv['name'] == chat_name for conv in conversations):
                                         # Fallback dla czatów bez URL - sprawdź po nazwie
                                         conversations.append({
@@ -169,17 +180,17 @@ class MessengerMonitor:
                                             'url': chat_url,
                                             'element': element
                                         })
-                                        logger.debug(f"      ✅ Dodano konwersację (bez URL): {chat_name}")
+                                        logger.info(f"      ✅ DODANO czat (bez URL): '{chat_name}'")
                                     else:
-                                        logger.debug(f"      ⏭️ Pominięto duplikat: {chat_name}")
+                                        logger.info(f"      ⏭️ POMINIĘTO duplikat: '{chat_name}' (URL już istnieje)")
                                 else:
-                                    logger.debug(f"      ⏭️ Element bez nazwy, pomijam")
+                                    logger.info(f"      ⏭️ POMINIĘTO: element bez nazwy")
 
                             except Exception as e:
                                 logger.warning(f"   ⚠️ Błąd podczas przetwarzania elementu {element_count}: {e}")
                                 continue
 
-                        logger.info(f"   Zakończono przetwarzanie {element_count} elementów")
+                        logger.info(f"   ✅ Zakończono przetwarzanie {element_count} elementów")
 
                         # Jeśli znaleźliśmy czaty, przerwij pętlę selektorów
                         if conversations:
@@ -500,6 +511,8 @@ class MessengerMonitor:
                             message_container
                         )
 
+                        logger.info(f"   📜 Scroll {scroll_num + 1}/{max_scrolls}: pozycja przed={current_scroll}")
+
                         # Scrolluj do samej góry
                         self.driver.execute_script(
                             "arguments[0].scrollTop = 0",
@@ -513,16 +526,18 @@ class MessengerMonitor:
                             message_container
                         )
 
+                        logger.info(f"      ➜ pozycja po={new_scroll}")
+
                         # Sprawdź czy pozycja się zmieniła
                         if current_scroll == new_scroll or new_scroll == 0:
                             no_change_count += 1
+                            logger.info(f"      ⚠️ Brak zmiany pozycji (próba {no_change_count}/3)")
                             if no_change_count >= 3:
-                                logger.info(f"✅ Osiągnięto początek konwersacji po {scroll_num + 1} scrollach")
+                                logger.info(f"   ✅ Osiągnięto początek konwersacji po {scroll_num + 1} scrollach")
                                 break
                         else:
                             no_change_count = 0
-
-                        logger.debug(f"   Scroll {scroll_num + 1}/{max_scrolls}: position {new_scroll}")
+                            logger.info(f"      ✅ Załadowano więcej wiadomości")
 
                 except Exception as e:
                     logger.debug(f"Błąd podczas scrollowania: {e}")
@@ -590,17 +605,20 @@ class MessengerMonitor:
 
             for idx, element in enumerate(message_elements):
                 try:
-                    # Log progress co 5 wiadomości
-                    if idx % 5 == 0 or idx == len(message_elements) - 1:
-                        logger.info(f"   Przetwarzam wiadomość {idx + 1}/{len(message_elements)}...")
+                    # Log progress for every message
+                    logger.info(f"   ━━━ Wiadomość {idx + 1}/{len(message_elements)} ━━━")
 
                     # Pobierz tekst wiadomości
-                    logger.debug(f"   [{idx + 1}] Pobieram tekst wiadomości...")
+                    logger.info(f"      📝 Pobieram tekst wiadomości...")
                     message_text = element.text.strip()
-                    logger.debug(f"   [{idx + 1}] Tekst: {message_text[:50]}..." if len(message_text) > 50 else f"   [{idx + 1}] Tekst: {message_text}")
+                    if message_text:
+                        text_preview = message_text[:50] + "..." if len(message_text) > 50 else message_text
+                        logger.info(f"      ✅ Tekst: '{text_preview}'")
+                    else:
+                        logger.info(f"      ⚠️ Brak tekstu")
 
                     # Pobierz aria-label (często zawiera dodatkowe info)
-                    logger.debug(f"   [{idx + 1}] Pobieram aria-label...")
+                    logger.info(f"      🔍 Pobieram aria-label...")
                     aria_label = element.get_attribute("aria-label")
 
                     # Podstawowe dane wiadomości
@@ -612,7 +630,7 @@ class MessengerMonitor:
 
                     # Pobierz timestamp jeśli włączone
                     if include_timestamps:
-                        logger.debug(f"   [{idx + 1}] Szukam timestamp...")
+                        logger.info(f"      🕐 Szukam timestamp...")
                         timestamp_element = None
                         try:
                             timestamp_element = element.find_element(By.CSS_SELECTOR, "span[aria-label*=':']")
@@ -621,11 +639,14 @@ class MessengerMonitor:
 
                         timestamp = timestamp_element.get_attribute("aria-label") if timestamp_element else None
                         message_data['timestamp'] = timestamp
-                        logger.debug(f"   [{idx + 1}] Timestamp: {timestamp}")
+                        if timestamp:
+                            logger.info(f"      ✅ Timestamp: {timestamp}")
+                        else:
+                            logger.info(f"      ⚠️ Brak timestamp")
 
                     # Pobierz info o nadawcy jeśli włączone
                     if include_sender_info and aria_label:
-                        logger.debug(f"   [{idx + 1}] Ekstraktuję info o nadawcy...")
+                        logger.info(f"      👤 Ekstraktuję info o nadawcy...")
                         message_data['aria_label'] = aria_label
                         # Spróbuj wyekstraktować nadawcę z aria-label
                         # Format: "You sent 'text'" lub "Name said 'text'"
@@ -637,27 +658,34 @@ class MessengerMonitor:
                             message_data['sender'] = sender_match.strip()
                         else:
                             message_data['sender'] = 'Unknown'
-                        logger.debug(f"   [{idx + 1}] Sender: {message_data.get('sender')}")
+                        logger.info(f"      ✅ Sender: {message_data.get('sender')}")
 
                     # Pobierz media jeśli włączone
                     if include_media:
-                        logger.debug(f"   [{idx + 1}] Szukam mediów...")
+                        logger.info(f"      🖼️ Szukam mediów...")
                         media_links = self._extract_media_from_element(element, media_config)
                         if media_links:
                             message_data['media'] = media_links
-                            logger.debug(f"   [{idx + 1}] Znaleziono {len(media_links)} mediów")
+                            logger.info(f"      ✅ Znaleziono {len(media_links)} mediów")
+                        else:
+                            logger.info(f"      ⚠️ Brak mediów")
 
                     # Pobierz reakcje jeśli włączone
                     if include_reactions:
-                        logger.debug(f"   [{idx + 1}] Szukam reakcji...")
+                        logger.info(f"      😊 Szukam reakcji...")
                         reactions = self._extract_reactions_from_element(element)
                         if reactions:
                             message_data['reactions'] = reactions
-                            logger.debug(f"   [{idx + 1}] Znaleziono {len(reactions)} reakcji")
+                            logger.info(f"      ✅ Znaleziono {len(reactions)} reakcji")
+                        else:
+                            logger.info(f"      ⚠️ Brak reakcji")
 
                     # Dodaj wiadomość jeśli ma treść lub media
                     if message_text or (include_media and message_data.get('media')):
                         messages.append(message_data)
+                        logger.info(f"      ✅ DODANO wiadomość do listy")
+                    else:
+                        logger.info(f"      ⏭️ POMINIĘTO: brak treści i mediów")
 
                 except Exception as e:
                     logger.debug(f"Błąd podczas przetwarzania wiadomości {idx}: {e}")
@@ -896,8 +924,10 @@ class MessengerMonitor:
                     conv_name = conv.get('name', 'Unknown')
                     conv_url = conv.get('url')
 
-                    logger.info(f"\n[{idx}/{len(conversations)}] Przetwarzam: {conv_name}")
-                    print(f"\n[{idx}/{len(conversations)}] Przetwarzam: {conv_name}")
+                    logger.info(f"\n{'='*70}")
+                    logger.info(f"[{idx}/{len(conversations)}] 💬 PRZETWARZAM KONWERSACJĘ: {conv_name}")
+                    logger.info(f"{'='*70}")
+                    print(f"\n[{idx}/{len(conversations)}] 💬 Przetwarzam: {conv_name}")
 
                     if not conv_url:
                         logger.warning(f"⚠️ Brak URL dla konwersacji: {conv_name}")
@@ -905,10 +935,12 @@ class MessengerMonitor:
                         continue
 
                     # Otwórz konwersację
+                    logger.info(f"   🔗 Otwieram konwersację...")
                     if not self.open_conversation(conv_url):
-                        logger.warning(f"⚠️ Nie udało się otworzyć konwersacji: {conv_name}")
+                        logger.warning(f"   ❌ Nie udało się otworzyć konwersacji: {conv_name}")
                         stats['failed'] += 1
                         continue
+                    logger.info(f"   ✅ Konwersacja otwarta")
 
                     # Scrolluj aby załadować wiadomości TYLKO w trybie extract
                     if should_scroll:
@@ -918,6 +950,7 @@ class MessengerMonitor:
                         logger.info(f"   ⏭️  Pomijam scrollowanie (tryb: {mode})")
 
                     # Ekstraktuj wiadomości
+                    logger.info(f"   📥 Rozpoczynam ekstrakcję wiadomości...")
                     messages = self.extract_messages_from_conversation()
 
                     if messages:
